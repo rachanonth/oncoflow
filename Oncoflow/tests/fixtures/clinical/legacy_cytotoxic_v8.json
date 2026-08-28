@@ -1,0 +1,667 @@
+[
+  {
+    "rule": "StandardDose",
+    "case": "numeric product below ten",
+    "inputs": { "dose": "5", "surface": "1.5" },
+    "expectedStatus": "calculated",
+    "expectedValue": "7.5",
+    "source": "recovered_function_module",
+    "evidenceNote": "Numeric branch returns Surface * Number when the product is below 10.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "numeric product exactly ten",
+    "inputs": { "dose": "5", "surface": "2" },
+    "expectedStatus": "calculated",
+    "expectedValue": "10",
+    "source": "recovered_function_module",
+    "evidenceNote": "The comparison is strictly less than 10; equality uses VBA Int.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "numeric product above ten floors",
+    "inputs": { "dose": "5.5", "surface": "2.1" },
+    "expectedStatus": "calculated",
+    "expectedValue": "11",
+    "source": "recovered_function_module",
+    "evidenceNote": "Products at or above 10 use VBA Int, which floors.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "negative numeric product remains exact below ten",
+    "inputs": { "dose": "-1.25", "surface": "2" },
+    "expectedStatus": "calculated",
+    "expectedValue": "-2.5",
+    "source": "recovered_function_module",
+    "evidenceNote": "The legacy function has no negative-input guard.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "zero numeric product",
+    "inputs": { "dose": "0", "surface": "2" },
+    "expectedStatus": "calculated",
+    "expectedValue": "0",
+    "source": "recovered_function_module",
+    "evidenceNote": "Zero is numeric and the product is below 10.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "very small decimal product",
+    "inputs": { "dose": "0.0001", "surface": "1" },
+    "expectedStatus": "calculated",
+    "expectedValue": "0.0001",
+    "source": "fixed_point_supported_subset",
+    "evidenceNote": "Products below 10 retain deterministic decimal precision.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "large numeric product floors deterministically",
+    "inputs": { "dose": "1000000000", "surface": "1000000000" },
+    "expectedStatus": "calculated",
+    "expectedValue": "1000000000000000000",
+    "source": "fixed_point_supported_subset",
+    "evidenceNote": "Large supported decimals use checked fixed-point multiplication and VBA Int.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "five-character positional range",
+    "inputs": { "dose": "10-20", "surface": "1.25" },
+    "expectedStatus": "calculated",
+    "expectedValue": "12 - 25",
+    "source": "recovered_function_module",
+    "evidenceNote": "Length 5 takes two characters from each end and does not inspect the delimiter.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "range upper midpoint rounds to even downward",
+    "inputs": { "dose": "1-2", "surface": "1.25" },
+    "expectedStatus": "calculated",
+    "expectedValue": "1 - 2",
+    "source": "recovered_function_module",
+    "evidenceNote": "Only E is declared As Integer; assigning 2.5 uses VBA midpoint-to-even coercion.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "range upper midpoint rounds to even upward",
+    "inputs": { "dose": "1-2", "surface": "1.75" },
+    "expectedStatus": "calculated",
+    "expectedValue": "1 - 4",
+    "source": "recovered_function_module",
+    "evidenceNote": "Only E is declared As Integer; assigning 3.5 uses VBA midpoint-to-even coercion.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "unmatched expression length preserves Empty-to-zero behavior",
+    "inputs": { "dose": "xx", "surface": "2" },
+    "expectedStatus": "calculated",
+    "expectedValue": "0 - 0",
+    "source": "recovered_function_module",
+    "evidenceNote": "No length branch assigns B or C, so Empty bounds coerce to zero.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "nonnumeric positional slice causes legacy error",
+    "inputs": { "dose": "abc", "surface": "2" },
+    "expectedStatus": "legacy_error",
+    "expectedValue": null,
+    "source": "recovered_function_module",
+    "evidenceNote": "The selected one-character bounds cannot participate in numeric multiplication.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "range upper VBA Integer overflow",
+    "inputs": { "dose": "1000-9999", "surface": "4" },
+    "expectedStatus": "legacy_error",
+    "expectedValue": null,
+    "source": "recovered_function_module",
+    "evidenceNote": "E is a signed 16-bit VBA Integer and 39996 is out of range.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "missing surface is not guessed",
+    "inputs": { "dose": "5", "surface": null },
+    "expectedStatus": "unsupported",
+    "expectedValue": null,
+    "source": "unverified_variant_behavior",
+    "evidenceNote": "NULL Surface coercion was not established with a reference output.",
+    "confidence": "UNKNOWN"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "missing dose is not guessed",
+    "inputs": { "dose": null, "surface": "2" },
+    "expectedStatus": "unsupported",
+    "expectedValue": null,
+    "source": "unverified_variant_behavior",
+    "evidenceNote": "NULL Number coercion was not established with a reference output.",
+    "confidence": "UNKNOWN"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "malformed surface reports legacy error",
+    "inputs": { "dose": "5", "surface": "bad" },
+    "expectedStatus": "legacy_error",
+    "expectedValue": null,
+    "source": "recovered_function_module",
+    "evidenceNote": "Multiplying a numeric Number by a nonnumeric Surface would cause a type mismatch.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "StandardDose",
+    "case": "locale-sensitive numeric form is unsupported",
+    "inputs": { "dose": "$5", "surface": "2" },
+    "expectedStatus": "unsupported",
+    "expectedValue": null,
+    "source": "unverified_locale_behavior",
+    "evidenceNote": "Access IsNumeric depends on locale for currency/grouping syntax.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+
+  {
+    "rule": "FixNumber",
+    "case": "positive midpoint ceilings",
+    "inputs": { "number": "1.5" },
+    "expectedStatus": "calculated",
+    "expectedValue": "2",
+    "source": "recovered_function_module",
+    "evidenceNote": "A fractional value returns Int(Number) + 1.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "FixNumber",
+    "case": "negative midpoint ceilings toward positive infinity",
+    "inputs": { "number": "-1.5" },
+    "expectedStatus": "calculated",
+    "expectedValue": "-1",
+    "source": "recovered_function_module",
+    "evidenceNote": "VBA Int(-1.5) is -2 and the fractional branch adds 1.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "FixNumber",
+    "case": "zero",
+    "inputs": { "number": "0" },
+    "expectedStatus": "calculated",
+    "expectedValue": "0",
+    "source": "recovered_function_module",
+    "evidenceNote": "An integral value returns Int(Number).",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "FixNumber",
+    "case": "very small positive value",
+    "inputs": { "number": "0.00000001" },
+    "expectedStatus": "calculated",
+    "expectedValue": "1",
+    "source": "recovered_function_module",
+    "evidenceNote": "Any positive fractional part enters the +1 branch.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "FixNumber",
+    "case": "large integral value",
+    "inputs": { "number": "100000000000000000000" },
+    "expectedStatus": "calculated",
+    "expectedValue": "100000000000000000000",
+    "source": "fixed_point_supported_subset",
+    "evidenceNote": "The deterministic fixed-point implementation retains integral decimal precision.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "FixNumber",
+    "case": "nonnumeric value returns legacy empty string",
+    "inputs": { "number": "not-a-number" },
+    "expectedStatus": "unavailable",
+    "expectedValue": null,
+    "source": "recovered_function_module",
+    "evidenceNote": "The function exits when IsNumeric is false.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "FixNumber",
+    "case": "NULL returns legacy empty string",
+    "inputs": { "number": null },
+    "expectedStatus": "unavailable",
+    "expectedValue": null,
+    "source": "recovered_function_module",
+    "evidenceNote": "NULL is not numeric and exits without assigning the String result.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "FixNumber",
+    "case": "locale-sensitive form is unsupported",
+    "inputs": { "number": "1,000.5" },
+    "expectedStatus": "unsupported",
+    "expectedValue": null,
+    "source": "unverified_locale_behavior",
+    "evidenceNote": "No Access locale was assumed.",
+    "confidence": "CONFIRMED"
+  },
+
+  {
+    "rule": "ANCCal",
+    "case": "typical ANC",
+    "inputs": { "wbc": "5000", "neutrophil": "50" },
+    "expectedStatus": "calculated",
+    "expectedValue": "2500",
+    "source": "recovered_function_module",
+    "evidenceNote": "ANC = Neutrophil * WBC / 100 after the legacy gate.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "ANCCal",
+    "case": "exact grade boundary",
+    "inputs": { "wbc": "3000", "neutrophil": "50" },
+    "expectedStatus": "calculated",
+    "expectedValue": "1500",
+    "source": "recovered_function_module",
+    "evidenceNote": "No explicit rounding is applied.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "ANCCal",
+    "case": "decimal result remains exact",
+    "inputs": { "wbc": "1", "neutrophil": "1" },
+    "expectedStatus": "calculated",
+    "expectedValue": "0.01",
+    "source": "recovered_function_module",
+    "evidenceNote": "No explicit rounding is applied.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "ANCCal",
+    "case": "WBC half-even gate rounds to zero",
+    "inputs": { "wbc": "0.5", "neutrophil": "50" },
+    "expectedStatus": "unavailable",
+    "expectedValue": null,
+    "source": "vba_logical_coercion",
+    "evidenceNote": "W in `W And N <> 0` is coerced to Long; 0.5 rounds midpoint-to-even to zero.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "ANCCal",
+    "case": "gate coercion does not replace formula input",
+    "inputs": { "wbc": "1.5", "neutrophil": "1" },
+    "expectedStatus": "calculated",
+    "expectedValue": "0.015",
+    "source": "vba_logical_coercion",
+    "evidenceNote": "The gate coerces WBC, while the formula still uses the original Double value.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "ANCCal",
+    "case": "zero WBC leaves empty result",
+    "inputs": { "wbc": "0", "neutrophil": "50" },
+    "expectedStatus": "unavailable",
+    "expectedValue": null,
+    "source": "recovered_function_module",
+    "evidenceNote": "The legacy logical gate is false.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "ANCCal",
+    "case": "zero neutrophil leaves empty result",
+    "inputs": { "wbc": "5000", "neutrophil": "0" },
+    "expectedStatus": "unavailable",
+    "expectedValue": null,
+    "source": "recovered_function_module",
+    "evidenceNote": "The legacy logical gate is false.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "ANCCal",
+    "case": "missing component leaves empty result",
+    "inputs": { "wbc": "5000", "neutrophil": null },
+    "expectedStatus": "unavailable",
+    "expectedValue": null,
+    "source": "excluded_external_lookup",
+    "evidenceNote": "The pure engine requires supplied local components and never queries dbo results.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "ANCCal",
+    "case": "negative input is preserved",
+    "inputs": { "wbc": "-100", "neutrophil": "50" },
+    "expectedStatus": "calculated",
+    "expectedValue": "-50",
+    "source": "recovered_function_module",
+    "evidenceNote": "No validation is present in the legacy function.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "ANCCal",
+    "case": "largest WBC accepted by the recovered Long gate",
+    "inputs": { "wbc": "2147483647", "neutrophil": "100" },
+    "expectedStatus": "calculated",
+    "expectedValue": "2147483647",
+    "source": "vba_logical_coercion",
+    "evidenceNote": "The logical And gate accepts the maximum signed 32-bit Long value.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "ANCCal",
+    "case": "WBC Long gate overflow",
+    "inputs": { "wbc": "2147483648", "neutrophil": "100" },
+    "expectedStatus": "legacy_error",
+    "expectedValue": null,
+    "source": "vba_logical_coercion",
+    "evidenceNote": "The logical And conversion cannot represent a value above signed 32-bit Long.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "ANCCal",
+    "case": "malformed component reports legacy error",
+    "inputs": { "wbc": "bad", "neutrophil": "50" },
+    "expectedStatus": "legacy_error",
+    "expectedValue": null,
+    "source": "recovered_function_module",
+    "evidenceNote": "Assigning a nonnumeric result to W As Double would fail.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+
+  {
+    "rule": "ANCGrade",
+    "case": "above upper boundary",
+    "inputs": { "anc": "1500.0001" },
+    "expectedStatus": "calculated",
+    "expectedValue": "-",
+    "source": "recovered_function_module",
+    "evidenceNote": "Only values strictly greater than 1500 return '-'.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "ANCGrade",
+    "case": "exact 1500 boundary",
+    "inputs": { "anc": "1500" },
+    "expectedStatus": "calculated",
+    "expectedValue": "1",
+    "source": "recovered_function_module",
+    "evidenceNote": "Equality at 1500 falls into grade 1.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "ANCGrade",
+    "case": "exact 1000 boundary",
+    "inputs": { "anc": "1000" },
+    "expectedStatus": "calculated",
+    "expectedValue": "1",
+    "source": "recovered_function_module",
+    "evidenceNote": "The grade-1 lower comparison is inclusive.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "ANCGrade",
+    "case": "immediately below 1000",
+    "inputs": { "anc": "999.9999" },
+    "expectedStatus": "calculated",
+    "expectedValue": "2",
+    "source": "recovered_function_module",
+    "evidenceNote": "Values below 1000 and at least 500 are grade 2.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "ANCGrade",
+    "case": "exact 500 boundary",
+    "inputs": { "anc": "500" },
+    "expectedStatus": "calculated",
+    "expectedValue": "2",
+    "source": "recovered_function_module",
+    "evidenceNote": "The grade-2 lower comparison is inclusive.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "ANCGrade",
+    "case": "immediately below 500",
+    "inputs": { "anc": "499.9999" },
+    "expectedStatus": "calculated",
+    "expectedValue": "3",
+    "source": "recovered_function_module",
+    "evidenceNote": "Values below 500 and at least 100 are grade 3.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "ANCGrade",
+    "case": "exact 100 boundary",
+    "inputs": { "anc": "100" },
+    "expectedStatus": "calculated",
+    "expectedValue": "3",
+    "source": "recovered_function_module",
+    "evidenceNote": "The grade-3 lower comparison is inclusive.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "ANCGrade",
+    "case": "immediately below 100",
+    "inputs": { "anc": "99.9999" },
+    "expectedStatus": "calculated",
+    "expectedValue": "4",
+    "source": "recovered_function_module",
+    "evidenceNote": "Values strictly below 100 are grade 4.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "ANCGrade",
+    "case": "zero",
+    "inputs": { "anc": "0" },
+    "expectedStatus": "calculated",
+    "expectedValue": "4",
+    "source": "recovered_function_module",
+    "evidenceNote": "Zero is below 100 and no special case exists.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "ANCGrade",
+    "case": "negative value",
+    "inputs": { "anc": "-1" },
+    "expectedStatus": "calculated",
+    "expectedValue": "4",
+    "source": "recovered_function_module",
+    "evidenceNote": "No negative-input guard exists.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "ANCGrade",
+    "case": "large value",
+    "inputs": { "anc": "100000000000000000000" },
+    "expectedStatus": "calculated",
+    "expectedValue": "-",
+    "source": "fixed_point_supported_subset",
+    "evidenceNote": "The upper comparison remains deterministic for supported decimal values.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "ANCGrade",
+    "case": "missing ANC",
+    "inputs": { "anc": null },
+    "expectedStatus": "unavailable",
+    "expectedValue": null,
+    "source": "separated_pure_function",
+    "evidenceNote": "No grade is inferred when ANCCal has no output.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "ANCGrade",
+    "case": "malformed ANC",
+    "inputs": { "anc": "bad" },
+    "expectedStatus": "legacy_error",
+    "expectedValue": null,
+    "source": "recovered_function_module",
+    "evidenceNote": "A nonnumeric comparison would fail rather than produce a grade.",
+    "confidence": "CONFIRMED"
+  },
+
+  {
+    "rule": "Platelet",
+    "case": "raw numeric result passthrough",
+    "inputs": { "rawValue": "100000" },
+    "expectedStatus": "calculated",
+    "expectedValue": "100000",
+    "source": "recovered_function_module",
+    "evidenceNote": "Platelet returns the fetched real_res unchanged as String.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "Platelet",
+    "case": "raw decimal formatting passthrough",
+    "inputs": { "rawValue": "00100.50" },
+    "expectedStatus": "calculated",
+    "expectedValue": "00100.50",
+    "source": "pure_local_boundary",
+    "evidenceNote": "The engine does not reinterpret the supplied raw result.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "Platelet",
+    "case": "raw zero passthrough",
+    "inputs": { "rawValue": "0" },
+    "expectedStatus": "calculated",
+    "expectedValue": "0",
+    "source": "recovered_function_module",
+    "evidenceNote": "The function contains no special zero behavior.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "Platelet",
+    "case": "raw negative passthrough",
+    "inputs": { "rawValue": "-1" },
+    "expectedStatus": "calculated",
+    "expectedValue": "-1",
+    "source": "recovered_function_module",
+    "evidenceNote": "The function contains no validation and returns the raw result unchanged.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "Platelet",
+    "case": "raw large value passthrough",
+    "inputs": { "rawValue": "999999999999999999999" },
+    "expectedStatus": "calculated",
+    "expectedValue": "999999999999999999999",
+    "source": "pure_local_boundary",
+    "evidenceNote": "The local pure boundary does not parse or normalize the supplied raw value.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "Platelet",
+    "case": "Thai text remains unchanged",
+    "inputs": { "rawValue": "ค่าเกล็ดเลือด" },
+    "expectedStatus": "calculated",
+    "expectedValue": "ค่าเกล็ดเลือด",
+    "source": "utf8_passthrough_test",
+    "evidenceNote": "The pure boundary preserves UTF-8 without replacement.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+  {
+    "rule": "Platelet",
+    "case": "missing local value",
+    "inputs": { "rawValue": null },
+    "expectedStatus": "unavailable",
+    "expectedValue": null,
+    "source": "excluded_external_lookup",
+    "evidenceNote": "The legacy dbo lookup is intentionally not part of OncoFlow runtime.",
+    "confidence": "PARTIALLY_CONFIRMED"
+  },
+
+  {
+    "rule": "LabMinMax",
+    "case": "numeric text passthrough",
+    "inputs": { "number": "12.5" },
+    "expectedStatus": "calculated",
+    "expectedValue": "12.5",
+    "source": "recovered_function_module",
+    "evidenceNote": "Numeric input is assigned to the String return through local variable A.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "LabMinMax",
+    "case": "leading zero text remains unchanged",
+    "inputs": { "number": "001" },
+    "expectedStatus": "calculated",
+    "expectedValue": "001",
+    "source": "supported_string_variant_subset",
+    "evidenceNote": "The API input is a String Variant and its text representation is preserved.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "LabMinMax",
+    "case": "negative numeric text",
+    "inputs": { "number": "-1" },
+    "expectedStatus": "calculated",
+    "expectedValue": "-1",
+    "source": "recovered_function_module",
+    "evidenceNote": "The function has no sign validation.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "LabMinMax",
+    "case": "zero numeric text",
+    "inputs": { "number": "0" },
+    "expectedStatus": "calculated",
+    "expectedValue": "0",
+    "source": "recovered_function_module",
+    "evidenceNote": "Zero is numeric and is returned through the String result.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "LabMinMax",
+    "case": "very small numeric text",
+    "inputs": { "number": "0.00000001" },
+    "expectedStatus": "calculated",
+    "expectedValue": "0.00000001",
+    "source": "supported_string_variant_subset",
+    "evidenceNote": "Supported numeric String Variant text is returned without rounding.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "LabMinMax",
+    "case": "large numeric text",
+    "inputs": { "number": "100000000000000000000" },
+    "expectedStatus": "calculated",
+    "expectedValue": "100000000000000000000",
+    "source": "supported_string_variant_subset",
+    "evidenceNote": "Supported numeric String Variant text is returned without rounding.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "LabMinMax",
+    "case": "nonnumeric fallback",
+    "inputs": { "number": "ไม่มีค่า" },
+    "expectedStatus": "calculated",
+    "expectedValue": "-",
+    "source": "recovered_function_module",
+    "evidenceNote": "IsNumeric false returns '-'; UTF-8 input is not logged or mutated.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "LabMinMax",
+    "case": "NULL fallback",
+    "inputs": { "number": null },
+    "expectedStatus": "calculated",
+    "expectedValue": "-",
+    "source": "recovered_function_module",
+    "evidenceNote": "NULL is nonnumeric and follows the fallback branch.",
+    "confidence": "CONFIRMED"
+  },
+  {
+    "rule": "LabMinMax",
+    "case": "locale-sensitive numeric form is unsupported",
+    "inputs": { "number": "$1" },
+    "expectedStatus": "unsupported",
+    "expectedValue": null,
+    "source": "unverified_locale_behavior",
+    "evidenceNote": "No Access locale was assumed for IsNumeric.",
+    "confidence": "CONFIRMED"
+  }
+]

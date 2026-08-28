@@ -1,0 +1,153 @@
+﻿object_type,name_or_value,notes
+form_module,About1,Form with VBA module detected
+form_module,AdmitOPDPatient,Form with VBA module detected
+form_module,AdmitPatientNew,Form with VBA module detected
+form_module,AdmitPatientSubform,Form with VBA module detected
+form_module,AdmitPatientWait,Form with VBA module detected
+form_module,Alert,Form with VBA module detected
+form_module,ANLink subform,Form with VBA module detected
+form_module,AppCardNew,Form with VBA module detected
+form_module,Appdate,Form with VBA module detected
+form_module,AppPatient,Form with VBA module detected
+form_module,Calendar,Form with VBA module detected
+form_module,Change Password,Form with VBA module detected
+form_module,Data in time1,Form with VBA module detected
+form_module,Data in time2,Form with VBA module detected
+form_module,Data of All Patient_Old,Form with VBA module detected
+form_module,DisplayDetailandSummary_old,Form with VBA module detected
+form_module,Drug details,Form with VBA module detected
+form_module,Edit diagnosis,Form with VBA module detected
+form_module,Edit Diluent,Form with VBA module detected
+form_module,Edit Doctor,Form with VBA module detected
+form_module,Edit Drug,Form with VBA module detected
+form_module,Edit Patient,Form with VBA module detected
+form_module,Edit Regimen,Form with VBA module detected
+form_module,Edit Route,Form with VBA module detected
+form_module,Edit SE,Form with VBA module detected
+form_module,Edit Unit,Form with VBA module detected
+form_module,Edit Ward,Form with VBA module detected
+form_module,Form1,Form with VBA module detected
+form_module,Form2,Form with VBA module detected
+form_module,HOMCMed,Form with VBA module detected
+form_module,INVCheck,Form with VBA module detected
+form_module,LabSubform,Form with VBA module detected
+form_module,Login,Form with VBA module detected
+form_module,ME,Form with VBA module detected
+form_module,NewLab,Form with VBA module detected
+form_module,Nurse,Form with VBA module detected
+form_module,order details subform_old,Form with VBA module detected
+form_module,Patho,Form with VBA module detected
+form_module,Pharmacist note,Form with VBA module detected
+form_module,PharmCareMain,Form with VBA module detected
+form_module,PharmrecSubFFMain,Form with VBA module detected
+form_module,PharmRecSubform,Form with VBA module detected
+form_module,Planning,Form with VBA module detected
+form_module,Print Continue subform,Form with VBA module detected
+form_module,Problem,Form with VBA module detected
+form_module,Protocol,Form with VBA module detected
+form_module,Regimen subform,Form with VBA module detected
+form_module,Review Data By Drug,Form with VBA module detected
+form_module,Review Data Subform,Form with VBA module detected
+form_module,Search,Form with VBA module detected
+form_module,Side Effect,Form with VBA module detected
+form_module,SOAP Main,Form with VBA module detected
+form_module,Standard dose,Form with VBA module detected
+form_module,User,Form with VBA module detected
+report_module,Drug Use by Ward,Report with VBA module detected
+report_module,Medication Profile Cont subform,Report with VBA module detected
+report_module,Number Each Drug Use,Report with VBA module detected
+report_module,Patient History_OLD,Report with VBA module detected
+report_module,Pharmacist note,Report with VBA module detected
+report_module,Print Continue Label,Report with VBA module detected
+report_module,Review data for Print,Report with VBA module detected
+report_module,Review side effect,Report with VBA module detected
+report_module,Standard Treatment Protocol,Report with VBA module detected
+report_module,Validation,Report with VBA module detected
+external_table,dbo_Appoint,Referenced external dbo_* table
+external_table,dbo_AppointGet,Referenced external dbo_* table
+external_table,dbo_docc,Referenced external dbo_* table
+external_table,dbo_ICD101,Referenced external dbo_* table
+external_table,dbo_InvReqD,Referenced external dbo_* table
+external_table,dbo_InvReqH,Referenced external dbo_* table
+external_table,dbo_Ipd_h,Referenced external dbo_* table
+external_table,dbo_Lab,Referenced external dbo_* table
+external_table,dbo_Labre_s,Referenced external dbo_* table
+external_table,dbo_Labres_d,Referenced external dbo_* table
+external_table,dbo_Labres_m,Referenced external dbo_* table
+external_table,dbo_Labtype,Referenced external dbo_* table
+external_table,dbo_Med_inv,Referenced external dbo_* table
+external_table,dbo_medalery,Referenced external dbo_* table
+external_table,dbo_OPD_H,Referenced external dbo_* table
+external_table,dbo_PATDIAG,Referenced external dbo_* table
+external_table,dbo_PATIENT,Referenced external dbo_* table
+external_table,dbo_Patmed,Referenced external dbo_* table
+external_table,dbo_Ward,Referenced external dbo_* table
+external_table,dbo_XresHis,Referenced external dbo_* table
+vba_function,StandardDose,Detected in Function module/string pool; port and parity-test
+vba_function,FixNumber,Detected in Function module/string pool; port and parity-test
+vba_function,HomcDate,Detected in Function module/string pool; port and parity-test
+vba_function,FormatDate543,Detected in Function module/string pool; port and parity-test
+vba_function,LabMinMax,Detected in Function module/string pool; port and parity-test
+vba_function,ApplyHN,Detected in Function module/string pool; port and parity-test
+vba_function,ApplyWFPlan,Detected in Function module/string pool; port and parity-test
+vba_function,ApplyPlan,Detected in Function module/string pool; port and parity-test
+vba_function,ApplyProblemWF,Detected in Function module/string pool; port and parity-test
+vba_function,ApplyPharmCare,Detected in Function module/string pool; port and parity-test
+vba_function,ApplyPharmCareWF,Detected in Function module/string pool; port and parity-test
+vba_function,ApplyProblem,Detected in Function module/string pool; port and parity-test
+vba_function,ApplyPharmRecWF,Detected in Function module/string pool; port and parity-test
+vba_function,ApplyPharmRec,Detected in Function module/string pool; port and parity-test
+vba_function,ApplySE,Detected in Function module/string pool; port and parity-test
+vba_function,EditOrder,Detected in Function module/string pool; port and parity-test
+vba_function,FindStart,Detected in Function module/string pool; port and parity-test
+vba_function,FindHOMC,Detected in Function module/string pool; port and parity-test
+vba_function,ANCCal,Detected in Function module/string pool; port and parity-test
+vba_function,ANCGrade,Detected in Function module/string pool; port and parity-test
+vba_function,HOMCDISC,Detected in Function module/string pool; port and parity-test
+vba_function,Platelet,Detected in Function module/string pool; port and parity-test
+vba_function,KeyDate,Detected in Function module/string pool; port and parity-test
+vba_function,Prac,Detected in Function module/string pool; port and parity-test
+vba_function,Practice,Detected in Function module/string pool; port and parity-test
+vba_function,Findlast,Detected in Function module/string pool; port and parity-test
+vba_function,CheckPlan,Detected in Function module/string pool; port and parity-test
+vba_function,OpenOrder,Detected in Function module/string pool; port and parity-test
+vba_function,ClearProblem,Detected in Function module/string pool; port and parity-test
+vba_function,StopDate,Detected in Function module/string pool; port and parity-test
+vba_function,CVCPlus,Detected in Function module/string pool; port and parity-test
+vba_function,FindRegist,Detected in Function module/string pool; port and parity-test
+vba_function,FindNPt,Detected in Function module/string pool; port and parity-test
+vba_function,CheckPatho,Detected in Function module/string pool; port and parity-test
+vba_function,AppD,Detected in Function module/string pool; port and parity-test
+vba_function,FindCardio,Detected in Function module/string pool; port and parity-test
+vba_function,CardioShow,Detected in Function module/string pool; port and parity-test
+vba_function,DxMsg,Detected in Function module/string pool; port and parity-test
+vba_function,AppFdate,Detected in Function module/string pool; port and parity-test
+vba_function,CSLCont,Detected in Function module/string pool; port and parity-test
+linked_mdb,C:\Ctx\Tbl\All Table.mdb,Legacy linked Access backend path
+access_connect,MS Access;PWD=table;,Legacy Access connect metadata
+menu_action,Open form 'Cytotoxic Drug Information',Detected Access menu/toolbar action
+menu_action,Preview report 'Help',Detected Access menu/toolbar action
+menu_action,Open form 'DisplayDetailandSummary',Detected Access menu/toolbar action
+menu_action,Preview report 'Return drug',Detected Access menu/toolbar action
+menu_action,Open form 'Data of All Patient',Detected Access menu/toolbar action
+menu_action,Open form 'Review Data By Drug',Detected Access menu/toolbar action
+menu_action,Preview report 'Validation',Detected Access menu/toolbar action
+menu_action,Open form 'Change Password',Detected Access menu/toolbar action
+menu_action,Open form 'User',Detected Access menu/toolbar action
+menu_action,Open form 'Edit Patient',Detected Access menu/toolbar action
+menu_action,Open form 'Edit Drug',Detected Access menu/toolbar action
+menu_action,Open form 'Edit Doctor',Detected Access menu/toolbar action
+menu_action,Open form 'Edit Ward',Detected Access menu/toolbar action
+menu_action,Open form 'Edit Route',Detected Access menu/toolbar action
+menu_action,Open form 'Edit Unit',Detected Access menu/toolbar action
+menu_action,Open form 'Edit Diluent',Detected Access menu/toolbar action
+menu_action,Open form 'Edit diagnosis',Detected Access menu/toolbar action
+menu_action,Open form 'Edit Regimen',Detected Access menu/toolbar action
+menu_action,Open form 'Order',Detected Access menu/toolbar action
+menu_action,Open form 'Change',Detected Access menu/toolbar action
+menu_action,Open form 'Print Continue',Detected Access menu/toolbar action
+menu_action,Open form 'Nurse',Detected Access menu/toolbar action
+menu_action,Open form 'Login',Detected Access menu/toolbar action
+migration_source,AllTable.mdb,Canonical unlocked Access backend filename for OncoFlow migration
+migration_source_password,none,Database-level password removed from the AllTable.mdb working copy
+migration_target,oncoflow.db,Canonical SQLite runtime database name for OncoFlow

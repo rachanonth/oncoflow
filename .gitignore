@@ -1,0 +1,46 @@
+# Dependencies and build output
+node_modules/
+dist/
+dist-ssr/
+target/
+
+# Local application and legacy databases (may contain patient data)
+*.mdb
+*.accdb
+*.ldb
+*.laccdb
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+
+# Generated exports and temporary work
+.tmp/
+outputs/
+tmp/
+temp/
+
+# Environment files and local configuration
+.env
+.env.*
+!.env.example
+*.local
+
+# Logs and test artifacts
+*.log
+logs/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editors and operating systems
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

@@ -1,0 +1,17 @@
+{
+  "ruleset": "legacy-cytotoxic-v8+withdrawal-1dp-v1",
+  "source": "synthetic cases derived from saved Safe Value and Print query expressions",
+  "confidence": "confirmed",
+  "cases": [
+    { "name": "exactly one container", "ordered": "100", "perContainer": "100", "containers": "1" },
+    { "name": "less than one container", "ordered": "99.999", "perContainer": "100", "containers": "1" },
+    { "name": "slightly above one container", "ordered": "100.0001", "perContainer": "100", "containers": "2" },
+    { "name": "exact multiple", "ordered": "200", "perContainer": "100", "containers": "2" },
+    { "name": "decimal presentation", "ordered": "1.25", "perContainer": "0.5", "containers": "3" },
+    { "name": "zero", "ordered": "0", "perContainer": "100", "containers": "0" },
+    { "name": "projected zero", "current": "2", "containers": "2", "projected": "0" },
+    { "name": "projected shortage", "current": "1", "containers": "2", "projected": "-1" },
+    { "name": "unsupported unit", "orderedUnit": "mg", "presentationUnit": "mcg", "status": "unsupported" },
+    { "name": "unknown presentation", "perContainer": null, "status": "unavailable" }
+  ]
+}
