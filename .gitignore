@@ -19,6 +19,8 @@ target/
 outputs/
 tmp/
 temp/
+Oncoflow/migration/
+Oncoflow/migrations/
 
 # Environment files and local configuration
 .env
