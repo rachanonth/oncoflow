@@ -6,7 +6,10 @@ use crate::{
     db::Database,
 };
 
-use super::{PreparationCountReport, PreparationCountReportRequest, ReportError, ReportService};
+use super::{
+    InventoryUsageReport, InventoryUsageReportRequest, PreparationCountReport,
+    PreparationCountReportRequest, ReportError, ReportService,
+};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -51,5 +54,16 @@ pub(crate) fn get_preparation_count_report(
 ) -> Result<PreparationCountReport, CommandError> {
     ReportService::new(&database, &session)
         .preparation_counts(request)
+        .map_err(Into::into)
+}
+
+#[tauri::command]
+pub(crate) fn get_inventory_usage_report(
+    database: State<'_, Database>,
+    session: State<'_, AuthSession>,
+    request: InventoryUsageReportRequest,
+) -> Result<InventoryUsageReport, CommandError> {
+    ReportService::new(&database, &session)
+        .inventory_usage(request)
         .map_err(Into::into)
 }

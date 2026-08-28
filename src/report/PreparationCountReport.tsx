@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 import { commandError, getPreparationCountReport } from "../api/commands";
 import { BuddhistDateInput } from "../components/BuddhistDateInput";
@@ -14,7 +15,7 @@ export interface GroupedPreparationPeriod {
   items: Array<{ key: string; label: string; prescriptionCount: number; bottleCount: number }>;
 }
 
-export function PreparationCountReport() {
+export function PreparationCountReport({ navigation }: { navigation?: ReactNode }) {
   const [interval, setInterval] = useState<ReportInterval>("daily");
   const [groupBy, setGroupBy] = useState<ReportGroupBy>("pharmacist");
   const [range, setRange] = useState(() => defaultReportRange("daily"));
@@ -46,6 +47,7 @@ export function PreparationCountReport() {
 
   return <section className="workspace report-workspace" aria-labelledby="preparation-count-heading">
     <div className="page-heading"><div><p className="eyebrow">Reports</p><h1 id="preparation-count-heading">จำนวนการเตรียมยาสะสม</h1><p className="page-summary">สรุปจำนวนตำรับและจำนวนขวดที่เตรียม แยกตามยาและเภสัชกรผู้เตรียม</p></div></div>
+    {navigation}
 
     <div className="surface report-filter-card">
       <div className="report-interval-filter" role="group" aria-label="ความละเอียดของรายงาน">

@@ -622,6 +622,33 @@ h2 {
 }
 
 /* Preparation count report */
+.report-navigation {
+  display: flex;
+  gap: .55rem;
+  margin: -0.55rem 0 1rem;
+  border-bottom: 1px solid #ccdcd8;
+  padding: 0 .2rem;
+}
+
+.report-navigation button {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: -1px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: .7rem .75rem .65rem;
+  color: #68807a;
+  background: transparent;
+  cursor: pointer;
+  font-size: .76rem;
+  font-weight: 720;
+}
+
+.report-navigation button span { color: #91a29e; font-size: .62rem; letter-spacing: .08em; }
+.report-navigation button.is-active { border-bottom-color: #176c5d; color: #176c5d; }
+.report-navigation button.is-active span { color: #2e8878; }
+
 .report-filter-card {
   display: grid;
   grid-template-columns: auto minmax(20rem, 1fr) auto;
@@ -741,6 +768,34 @@ h2 {
 .report-table tfoot td { border-top: 2px solid #aaccc4; padding-top: .95rem; padding-bottom: .95rem; background: #edf7f4; }
 .report-table tfoot th { color: #225b51; text-align: right; font-size: .82rem; }
 .report-quantity--total strong { color: #125d50; font-size: 1.15rem; }
+
+.inventory-usage-legend { color: #71837f; font-size: .68rem; }
+.inventory-usage-table { min-width: 980px; }
+.inventory-usage-table th:nth-child(1) { width: 18%; }
+.inventory-usage-table th:nth-child(2) { width: 27%; }
+.inventory-usage-table th:nth-child(3) { width: 20%; }
+.inventory-usage-table th:nth-child(4) { width: 17%; }
+.inventory-usage-table th:nth-child(5) { width: 18%; }
+.inventory-usage-table tbody tr.report-period-start:not(:first-child) > td { border-top: 2px solid #dce8e4; }
+.inventory-usage-table td[rowspan] { vertical-align: top; background: #f8fbfa; }
+.inventory-usage-table tfoot th,
+.inventory-usage-table tfoot td { border-top: 2px solid #aaccc4; padding-top: .95rem; padding-bottom: .95rem; background: #edf7f4; }
+.inventory-usage-table tfoot th { color: #225b51; text-align: right; font-size: .82rem; }
+.inventory-usage-code { display: block; margin-bottom: .18rem; color: #7a8e89; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .62rem; }
+.inventory-exceptions { display: flex; flex-wrap: wrap; gap: .28rem; margin-top: .4rem; }
+.inventory-exception { display: inline-flex; border-radius: 999px; padding: .2rem .42rem; font-size: .58rem; font-weight: 700; white-space: nowrap; }
+.inventory-exception--waiting { color: #76570d; background: #fff1c9; }
+.inventory-exception--manual { color: #863e32; background: #fbe4df; }
+.inventory-exception--muted { color: #64736f; background: #e9eeec; }
+.inventory-issued { display: flex; align-items: baseline; justify-content: flex-end; gap: .38rem; white-space: nowrap; }
+.inventory-issued strong { color: #176c5d; font-size: 1rem; }
+.inventory-issued span { color: #657d77; font-size: .68rem; }
+.inventory-issued--total strong { color: #125d50; font-size: 1.15rem; }
+.inventory-balance { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: .22rem .35rem; }
+.inventory-balance > strong { color: #284f48; font-size: .95rem; text-align: right; }
+.inventory-balance > span { color: #70847f; font-size: .65rem; }
+.inventory-balance .stock-state { grid-column: 1 / -1; }
+.inventory-balance em { grid-column: 1 / -1; color: #81918d; font-size: .6rem; font-style: normal; }
 
 @media (max-width: 920px) {
   .report-filter-card { grid-template-columns: 1fr; }

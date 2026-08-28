@@ -157,6 +157,7 @@ pub fn run() {
             preparation::commands::check_preparation_tasks,
             preparation::commands::acknowledge_preparation_safety_finding,
             report::commands::get_preparation_count_report,
+            report::commands::get_inventory_usage_report,
             output::commands::get_preparation_output,
             hardware::commands::list_system_printers,
             hardware::commands::print_test_label,

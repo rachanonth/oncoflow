@@ -19,7 +19,7 @@ import { RegimenForm } from "./regimen/RegimenForm";
 import { RegimenList } from "./regimen/RegimenList";
 import { PreparationQueue } from "./preparation/PreparationQueue";
 import { PreparationWorkspace } from "./preparation/PreparationWorkspace";
-import { PreparationCountReport } from "./report/PreparationCountReport";
+import { ReportsWorkspace } from "./report/ReportsWorkspace";
 import { InventoryList } from "./inventory/InventoryList";
 import { InventoryDetail } from "./inventory/InventoryDetail";
 import { HardwareSettings } from "./hardware/HardwareSettings";
@@ -497,7 +497,7 @@ function AuthenticatedApp({ user, onAuthState }: { user: CurrentUser; onAuthStat
         {view.kind === "preparationWorkspace" && (
           <PreparationWorkspace orderId={view.orderId} preparationDate={view.preparationDate} onBack={() => setView({ kind: "preparation" })} onOpenOrder={() => setView({ kind: "orderDetail", orderId: view.orderId, preparationDate: view.preparationDate })} />
         )}
-        {view.kind === "reports" && <PreparationCountReport />}
+        {view.kind === "reports" && <ReportsWorkspace />}
         {view.kind === "inventory" && (
           <InventoryList onOpen={(drugId) => setView({ kind: "inventoryDetail", drugId })} />
         )}

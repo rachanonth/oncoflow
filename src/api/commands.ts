@@ -63,7 +63,7 @@ import type {
   InventoryReceiptInput,
 } from "../types/inventory";
 import type { PreparationOutput } from "../types/output";
-import type { PreparationCountReport, PreparationCountReportRequest } from "../types/report";
+import type { InventoryUsageReport, InventoryUsageReportRequest, PreparationCountReport, PreparationCountReportRequest } from "../types/report";
 import type { LabelPrinterConfig, PreparationBatchPrintResult, PreparationPrintResult, PrintJobReceipt } from "../types/hardware";
 import type {
   BackupResult,
@@ -242,6 +242,7 @@ export function checkPreparationTask(taskId: number): Promise<PreparationTask> {
 export function checkPreparationTasks(taskIds: number[]): Promise<PreparationTask[]> { return invoke<PreparationTask[]>("check_preparation_tasks", { taskIds }); }
 export function acknowledgePreparationSafetyFinding(orderId: number, preparationDate: string, findingId: string): Promise<PreparationWorkspace> { return invoke<PreparationWorkspace>("acknowledge_preparation_safety_finding", { orderId, preparationDate, findingId }); }
 export function getPreparationCountReport(request: PreparationCountReportRequest): Promise<PreparationCountReport> { return invoke<PreparationCountReport>("get_preparation_count_report", { request }); }
+export function getInventoryUsageReport(request: InventoryUsageReportRequest): Promise<InventoryUsageReport> { return invoke<InventoryUsageReport>("get_inventory_usage_report", { request }); }
 export function getPreparationOutput(preparationId: number): Promise<PreparationOutput> { return invoke<PreparationOutput>("get_preparation_output", { preparationId }); }
 export function listSystemPrinters(): Promise<string[]> { return invoke<string[]>("list_system_printers"); }
 export function printTestLabel(config: LabelPrinterConfig): Promise<PrintJobReceipt> { return invoke<PrintJobReceipt>("print_test_label", { config }); }

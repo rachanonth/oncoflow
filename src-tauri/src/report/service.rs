@@ -5,7 +5,10 @@ use crate::{
     db::{Database, DatabaseError},
 };
 
-use super::{repository, PreparationCountReport, PreparationCountReportRequest};
+use super::{
+    repository, InventoryUsageReport, InventoryUsageReportRequest, PreparationCountReport,
+    PreparationCountReportRequest,
+};
 
 #[derive(Debug, Error)]
 pub(crate) enum ReportError {
@@ -37,14 +40,7 @@ impl<'a> ReportService<'a> {
         request: PreparationCountReportRequest,
     ) -> Result<PreparationCountReport, ReportError> {
         self.session.require_user()?;
-        validate_date(&request.date_from, "dateFrom")?;
-        validate_date(&request.date_to, "dateTo")?;
-        if request.date_from > request.date_to {
-            return Err(ReportError::Validation {
-                field: "dateTo",
-                message: "End date must be on or after start date.".into(),
-            });
-        }
+        validate_range(&request.date_from, &request.date_to)?;
         let connection = self.database.open()?;
         let rows = repository::preparation_counts(
             &connection,
@@ -63,6 +59,54 @@ impl<'a> ReportService<'a> {
             rows,
         })
     }
+
+    pub(crate) fn inventory_usage(
+        &self,
+        request: InventoryUsageReportRequest,
+    ) -> Result<InventoryUsageReport, ReportError> {
+        self.session.require_user()?;
+        validate_range(&request.date_from, &request.date_to)?;
+        let connection = self.database.open()?;
+        let rows = repository::inventory_usage(
+            &connection,
+            request.interval,
+            &request.date_from,
+            &request.date_to,
+        )?;
+        let total_prescriptions = rows.iter().map(|row| row.prescription_count).sum();
+        let total_prepared_bottles = rows.iter().map(|row| row.prepared_bottle_count).sum();
+        let total_issued_source_containers = rows
+            .iter()
+            .map(|row| row.issued_source_container_count)
+            .sum();
+        let drug_count = rows
+            .iter()
+            .map(|row| row.drug_id)
+            .collect::<std::collections::HashSet<_>>()
+            .len() as i64;
+        Ok(InventoryUsageReport {
+            interval: request.interval,
+            date_from: request.date_from,
+            date_to: request.date_to,
+            total_prescriptions,
+            total_prepared_bottles,
+            total_issued_source_containers,
+            drug_count,
+            rows,
+        })
+    }
+}
+
+fn validate_range(date_from: &str, date_to: &str) -> Result<(), ReportError> {
+    validate_date(date_from, "dateFrom")?;
+    validate_date(date_to, "dateTo")?;
+    if date_from > date_to {
+        return Err(ReportError::Validation {
+            field: "dateTo",
+            message: "End date must be on or after start date.".into(),
+        });
+    }
+    Ok(())
 }
 
 fn validate_date(value: &str, field: &'static str) -> Result<(), ReportError> {
