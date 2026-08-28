@@ -20,7 +20,6 @@ outputs/
 tmp/
 temp/
 /migration/
-/migrations/
 
 # Environment files and local configuration
 .env
