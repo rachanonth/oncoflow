@@ -19,8 +19,8 @@ target/
 outputs/
 tmp/
 temp/
-Oncoflow/migration/
-Oncoflow/migrations/
+/migration/
+/migrations/
 
 # Environment files and local configuration
 .env
@@ -36,8 +36,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 
 # Editors and operating systems
+.vscode/*
+!.vscode/extensions.json
 .idea/
 .DS_Store
 Thumbs.db

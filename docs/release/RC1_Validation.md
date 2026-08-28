@@ -168,7 +168,7 @@ Automated backup/restore validation passed with the SQLite online backup API, SH
 The fresh RC1 NSIS package built successfully:
 
 ```text
-C:\oncoflow\Oncoflow\src-tauri\target\release\bundle\nsis\OncoFlow_0.1.0_x64-setup.exe
+C:\oncoflow\src-tauri\target\release\bundle\nsis\OncoFlow_0.1.0_x64-setup.exe
 Size:   3,254,436 bytes
 SHA-256: BB7A218103498A7EF77DF1C01E3CC795317D1644972FB10C4E8EA3E04F0A87A0
 ```
