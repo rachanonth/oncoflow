@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub(crate) enum PrinterLanguage {
     Escpos,
     Tspl,
+    Zpl,
 }
 
 #[derive(Debug, Clone, Deserialize)]
