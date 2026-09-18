@@ -1,6 +1,6 @@
 import type { PreparationOutput } from "./output";
 
-export type PrinterLanguage = "escpos" | "tspl";
+export type PrinterLanguage = "escpos" | "tspl" | "zpl";
 
 export interface LabelFontSizes {
   header: number;
