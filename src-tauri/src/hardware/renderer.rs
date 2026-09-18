@@ -45,6 +45,7 @@ pub(crate) fn render_preparation_labels(
             payload.extend(match config.language {
                 PrinterLanguage::Escpos => encode_escpos(&bitmap),
                 PrinterLanguage::Tspl => encode_tspl(&bitmap, config),
+                PrinterLanguage::Zpl => encode_zpl(&bitmap),
             });
         }
     }
