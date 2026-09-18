@@ -41,7 +41,8 @@ pub(super) fn list_drugs(
     let sql = format!(
         "SELECT d.id, d.legacy_dcode, d.drug_name, u.unit_name, d.package,
                 d.inventory_enabled, d.inventory_min, d.inventory_max,
-                (SELECT SUM(quantity_delta) FROM inventory_movements WHERE drug_id=d.id)
+                (SELECT SUM(quantity_delta) FROM inventory_movements WHERE drug_id=d.id),
+                d.dose_per_pack, d.volume_per_pack_ml
          FROM drugs d
          LEFT JOIN units u ON u.id = d.unit_id
          WHERE {where_clause}
@@ -317,6 +318,8 @@ fn map_drug_summary(row: &Row<'_>) -> rusqlite::Result<DrugSummary> {
         inventory_min: row.get(6)?,
         inventory_max: row.get(7)?,
         inventory_quantity: row.get(8)?,
+        dose_per_pack: row.get(9)?,
+        volume_per_pack_ml: row.get(10)?,
     })
 }
 

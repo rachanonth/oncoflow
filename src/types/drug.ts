@@ -16,6 +16,8 @@ export interface DrugSummary {
   name: string;
   unit: string | null;
   package: string | null;
+  dosePerPack: number | null;
+  volumePerPackMl: number | null;
   inventoryEnabled: boolean;
   inventoryMin: number | null;
   inventoryMax: number | null;

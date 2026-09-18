@@ -7,7 +7,7 @@ import type {
   DrugSummary,
   SortDirection,
 } from "../types/drug";
-import { displayDrugValue } from "./format";
+import { displayDrugValue, drugNameWithPackageSize } from "./format";
 
 interface DrugListProps {
   onCreate: () => void;
@@ -189,7 +189,7 @@ export function DrugList({ onCreate, onOpen }: DrugListProps) {
                       onDoubleClick={() => onOpen(drug.id)}
                       onKeyDown={(event) => event.key === "Enter" && onOpen(drug.id)}
                     >
-                      <td><span className="patient-name">{drug.name}</span></td>
+                      <td><span className="patient-name">{drugNameWithPackageSize(drug)}</span></td>
                       <td>{drug.unit ?? <span className="muted">Not set</span>}</td>
                       <td>{drug.package ?? <span className="muted">Not set</span>}</td>
                       <td>
@@ -199,7 +199,7 @@ export function DrugList({ onCreate, onOpen }: DrugListProps) {
                       </td>
                       <td>{displayDrugValue(drug.inventoryMin)} / {displayDrugValue(drug.inventoryMax)}</td>
                       <td>
-                        <button className="row-action" type="button" aria-label={`Open drug ${drug.name}`} onClick={(event) => { event.stopPropagation(); onOpen(drug.id); }}>›</button>
+                        <button className="row-action" type="button" aria-label={`Open drug ${drugNameWithPackageSize(drug)}`} onClick={(event) => { event.stopPropagation(); onOpen(drug.id); }}>›</button>
                       </td>
                     </tr>
                   ))}

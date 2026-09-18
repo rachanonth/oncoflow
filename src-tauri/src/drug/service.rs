@@ -265,16 +265,18 @@ mod tests {
     #[test]
     fn creates_lists_and_gets_drug_by_id_and_code() {
         let fixture = Fixture::new();
-        let created = fixture
-            .service()
-            .create(input("SYN-01", "Synthetic medicine"))
-            .unwrap();
+        let mut drug = input("SYN-01", "Synthetic medicine");
+        drug.dose_per_pack = Some(25.5);
+        drug.volume_per_pack_ml = Some(5.1);
+        let created = fixture.service().create(drug).unwrap();
         let list = fixture.service().list(DrugListRequest::default()).unwrap();
         let by_id = fixture.service().get(created.id).unwrap();
         let by_code = fixture.service().get_by_code("SYN-01").unwrap();
 
         assert_eq!(list.total, 1);
         assert_eq!(list.items[0].code, "SYN-01");
+        assert_eq!(list.items[0].dose_per_pack, Some(25.5));
+        assert_eq!(list.items[0].volume_per_pack_ml, Some(5.1));
         assert_eq!(by_id.name, "Synthetic medicine");
         assert_eq!(by_code.id, created.id);
     }

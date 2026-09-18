@@ -1097,6 +1097,12 @@ h2 {
 .drug-table th:nth-child(5) { width: 20%; }
 .drug-table th:nth-child(6) { width: 3.5rem; }
 
+.drug-table .patient-name,
+.patient-hero.drug-hero h1 {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .regimen-table th:nth-child(1) { width: 14%; }
 .regimen-table th:nth-child(2) { width: 34%; }
 .regimen-table th:nth-child(3) { width: 16%; }

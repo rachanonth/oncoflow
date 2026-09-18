@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { commandError, getDrug } from "../api/commands";
 import type { DrugDetail as DrugDetailType } from "../types/drug";
 import { displayDuration } from "../shared/duration";
-import { displayDrugValue, displayFlag, numberWithUnit } from "./format";
+import { displayDrugValue, displayFlag, drugNameWithPackageSize, numberWithUnit } from "./format";
 
 interface DrugDetailProps {
   drugId: number;
@@ -72,7 +72,7 @@ export function DrugDetail({ drugId, onBack, onEdit }: DrugDetailProps) {
         <div className="patient-avatar drug-avatar" aria-hidden="true">Rx</div>
         <div className="patient-hero__identity">
           <p className="eyebrow">Drug master record</p>
-          <h1 id="drug-name-heading">{drug.name}</h1>
+          <h1 id="drug-name-heading">{drugNameWithPackageSize(drug)}</h1>
           <div className="identity-chips">
             {drug.unit && <span className="identity-chip"><b>Unit</b> {drug.unit}</span>}
             <span className={`identity-chip ${drug.inventoryEnabled ? "" : "identity-chip--neutral"}`}>

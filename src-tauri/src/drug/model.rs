@@ -37,6 +37,8 @@ pub struct DrugSummary {
     pub name: String,
     pub unit: Option<String>,
     pub package: Option<String>,
+    pub dose_per_pack: Option<f64>,
+    pub volume_per_pack_ml: Option<f64>,
     pub inventory_enabled: bool,
     pub inventory_min: Option<f64>,
     pub inventory_max: Option<f64>,
