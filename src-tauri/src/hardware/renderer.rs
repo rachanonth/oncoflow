@@ -6,7 +6,7 @@ use crate::output::{expiration_at, PreparationContainerLabelData, PreparationOut
 
 use super::{HardwareError, LabelPrinterConfig, PrinterLanguage};
 
-pub(crate) const LABEL_RENDERER_VERSION: &str = "oncoflow-raw-label-raster-v7";
+pub(crate) const LABEL_RENDERER_VERSION: &str = "oncoflow-raw-label-raster-v8-zpl";
 const MAX_PIXELS: usize = 25_000_000;
 
 pub(crate) fn render_preparation_label(
@@ -22,6 +22,7 @@ pub(crate) fn render_preparation_label(
         payload.extend(match config.language {
             PrinterLanguage::Escpos => encode_escpos(&bitmap),
             PrinterLanguage::Tspl => encode_tspl(&bitmap, config),
+            PrinterLanguage::Zpl => encode_zpl(&bitmap),
         });
     }
     Ok(payload)
@@ -60,6 +61,7 @@ pub(super) fn render_test_label(config: &LabelPrinterConfig) -> Result<Vec<u8>, 
     match config.language {
         PrinterLanguage::Escpos => Ok(encode_escpos(&bitmap)),
         PrinterLanguage::Tspl => Ok(encode_tspl(&bitmap, config)),
+        PrinterLanguage::Zpl => Ok(encode_zpl(&bitmap)),
     }
 }
 
@@ -565,6 +567,29 @@ fn encode_escpos(bitmap: &MonochromeBitmap) -> Vec<u8> {
     output
 }
 
+fn encode_zpl(bitmap: &MonochromeBitmap) -> Vec<u8> {
+    const MAX_GF_BYTES: usize = 99_999;
+    let row_bytes = bitmap.width_bytes() as usize;
+    let rows_per_chunk = (MAX_GF_BYTES / row_bytes).max(1);
+    let mut output = format!(
+        "^XA\r\n^PW{}\r\n^LL{}\r\n",
+        bitmap.width, bitmap.height
+    )
+    .into_bytes();
+
+    for (chunk_index, chunk) in bitmap.data.chunks(row_bytes * rows_per_chunk).enumerate() {
+        let y = chunk_index * rows_per_chunk;
+        output.extend_from_slice(
+            format!("^FO0,{y}^GFB,{},{},{},", chunk.len(), chunk.len(), row_bytes).as_bytes(),
+        );
+        output.extend_from_slice(chunk);
+        output.extend_from_slice(b"^FS\r\n");
+    }
+
+    output.extend_from_slice(b"^XZ\r\n");
+    output
+}
+
 fn encode_tspl(bitmap: &MonochromeBitmap, config: &LabelPrinterConfig) -> Vec<u8> {
     let header = format!(
         "SIZE {:.1} mm,{:.1} mm\r\nGAP {:.1} mm,0 mm\r\nDIRECTION 1\r\nCLS\r\nBITMAP 0,0,{},{},0,",
@@ -766,6 +791,17 @@ mod tests {
         assert_eq!(first, second);
         assert!(first.starts_with(&[0x1b, 0x40, 0x1d, 0x76, 0x30, 0x00]));
         assert!(first.iter().any(|byte| *byte != 0));
+    }
+
+    #[test]
+    fn renders_zpl_bitmap_for_zebra_raw_queue() {
+        let bytes = render_preparation_label(&output(), &config(PrinterLanguage::Zpl)).unwrap();
+        assert!(bytes.starts_with(b"^XA\r\n^PW"));
+        assert!(bytes.windows(b"^GFB,".len()).any(|window| window == b"^GFB,"));
+        assert!(bytes.ends_with(b"^XZ\r\n"));
+        let printable = String::from_utf8_lossy(&bytes);
+        assert!(!printable.contains("SYN-HN"));
+        assert!(!printable.contains("ผู้ป่วย"));
     }
 
     #[test]
