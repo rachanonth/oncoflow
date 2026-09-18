@@ -37,7 +37,9 @@ export function loadLabelPrinterConfig(): LabelPrinterConfig | null {
     const spoolerName = window.localStorage.getItem(LABEL_SPOOLER_KEY)?.trim();
     if (!spoolerName) return null;
     const rawLanguage = window.localStorage.getItem(LABEL_LANGUAGE_KEY);
-    const language: PrinterLanguage = rawLanguage === "escpos" ? "escpos" : "tspl";
+    const storedLanguage: PrinterLanguage =
+      rawLanguage === "zpl" ? "zpl" : rawLanguage === "escpos" ? "escpos" : "tspl";
+    const language = inferPrinterLanguageFromQueue(spoolerName) ?? storedLanguage;
     return {
       spoolerName,
       language,
@@ -53,6 +55,14 @@ export function loadLabelPrinterConfig(): LabelPrinterConfig | null {
   }
 }
 
+export function inferPrinterLanguageFromQueue(queueName: string): PrinterLanguage | null {
+  const normalized = queueName.trim().toLowerCase();
+  if (!normalized) return null;
+  if (/(^|[^a-z])zpl([^a-z]|$)/.test(normalized)) return "zpl";
+  if (/(^|[^a-z])tspl([^a-z]|$)/.test(normalized)) return "tspl";
+  if (normalized.includes("esc/pos") || normalized.includes("escpos")) return "escpos";
+  return null;
+}
 export function saveLabelPrinterConfig(config: LabelPrinterConfig): void {
   window.localStorage.setItem(LABEL_SPOOLER_KEY, config.spoolerName);
   window.localStorage.setItem(LABEL_LANGUAGE_KEY, config.language);

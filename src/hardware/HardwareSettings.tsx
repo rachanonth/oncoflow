@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { commandError, listSystemPrinters, printTestLabel } from "../api/commands";
 import { PageDescription } from "../guidance/PageGuidance";
 import type { LabelPrinterConfig } from "../types/hardware";
-import { DEFAULT_LABEL_PRINTER, loadLabelPrinterConfig, saveLabelPrinterConfig } from "./printerSettings";
+import { DEFAULT_LABEL_PRINTER, inferPrinterLanguageFromQueue, loadLabelPrinterConfig, saveLabelPrinterConfig } from "./printerSettings";
 
 export function HardwareSettings() {
   const saved = loadLabelPrinterConfig();
@@ -68,15 +68,15 @@ export function HardwareSettingsView({ config, printers, loading, busy, error, m
   const savedQueueMissing = config.spoolerName !== "" && !loading && !printers.includes(config.spoolerName);
   return <section className="workspace hardware-workspace" aria-labelledby="hardware-heading">
     <div className="page-heading"><div><p className="eyebrow">Settings</p><h1 id="hardware-heading">Label printer</h1><PageDescription pageKey="hardware" /></div></div>
-    <div className="hardware-boundary-note"><strong>Windows manages the connection.</strong> Install the manufacturer driver first. OncoFlow sends rasterized ESC/POS or TSPL bytes to the selected installed queue; it never connects directly to USB or LAN.</div>
+    <div className="hardware-boundary-note"><strong>Windows manages the connection.</strong> Install the manufacturer driver first. OncoFlow sends rasterized ZPL, TSPL, or ESC/POS bytes to the selected installed queue; it never connects directly to USB or LAN.</div>
     <div className="surface hardware-card">
       <div className="hardware-card__heading"><div><p className="eyebrow">This workstation</p><h2>Preparation label output</h2></div><button className="button button--secondary" type="button" disabled={loading || busy} onClick={onRefresh}>{loading ? "Refreshing…" : "Refresh queues"}</button></div>
       {error && <div className="auth-error" role="alert">{error}</div>}
       {message && <div className="auth-success" role="status">{message}</div>}
       {savedQueueMissing && <div className="hardware-warning" role="status">The saved queue is not currently installed or visible. Reinstall the driver or choose another queue.</div>}
       <div className="hardware-form-grid">
-        <label className="is-wide">Windows printer queue<select value={config.spoolerName} disabled={loading || busy} onChange={(event) => onConfig({ ...config, spoolerName: event.target.value })}><option value="">Select an installed printer</option>{savedQueueMissing && <option value={config.spoolerName}>{config.spoolerName} (saved, unavailable)</option>}{printers.map((printer) => <option key={printer} value={printer}>{printer}</option>)}</select><small>Queue names may change when a printer driver is reinstalled.</small></label>
-        <label>Printer language<select value={config.language} disabled={busy} onChange={(event) => onConfig({ ...config, language: event.target.value === "escpos" ? "escpos" : "tspl" })}><option value="tspl">TSPL</option><option value="escpos">ESC/POS</option></select><small>Must match the target printer.</small></label>
+        <label className="is-wide">Windows printer queue<select value={config.spoolerName} disabled={loading || busy} onChange={(event) => { const spoolerName = event.target.value; onConfig({ ...config, spoolerName, language: inferPrinterLanguageFromQueue(spoolerName) ?? config.language }); }}><option value="">Select an installed printer</option>{savedQueueMissing && <option value={config.spoolerName}>{config.spoolerName} (saved, unavailable)</option>}{printers.map((printer) => <option key={printer} value={printer}>{printer}</option>)}</select><small>Queue names may change when a printer driver is reinstalled.</small></label>
+        <label>Printer language<select value={config.language} disabled={busy} onChange={(event) => { const language = event.target.value; onConfig({ ...config, language: language === "zpl" ? "zpl" : language === "escpos" ? "escpos" : "tspl" }); }}><option value="zpl">ZPL (Zebra)</option><option value="tspl">TSPL</option><option value="escpos">ESC/POS</option></select><small>Must match the target printer. Zebra ZDesigner ZPL queues use ZPL.</small></label>
         <label>Resolution<select value={config.dpi} disabled={busy} onChange={(event) => onConfig({ ...config, dpi: Number(event.target.value) })}><option value={203}>203 dpi</option><option value={300}>300 dpi</option><option value={600}>600 dpi</option></select></label>
         <label>Width (mm)<input type="number" min="25" max="200" step="0.1" value={config.widthMm} disabled={busy} onChange={(event) => onConfig({ ...config, widthMm: Number(event.target.value) })} /></label>
         <label>Height (mm)<input type="number" min="20" max="200" step="0.1" value={config.heightMm} disabled={busy} onChange={(event) => onConfig({ ...config, heightMm: Number(event.target.value) })} /></label>
@@ -93,6 +93,10 @@ export function HardwareSettingsView({ config, printers, loading, busy, error, m
 
 export function validatePrinterConfig(config: LabelPrinterConfig): string | null {
   if (!config.spoolerName.trim()) return "Select an installed Windows printer queue.";
+  const inferredLanguage = inferPrinterLanguageFromQueue(config.spoolerName);
+  if (inferredLanguage && inferredLanguage !== config.language) {
+    return `The selected Windows queue indicates ${inferredLanguage.toUpperCase()}. Set Printer language to ${inferredLanguage.toUpperCase()}.`;
+  }
   if (!Number.isFinite(config.widthMm) || config.widthMm < 25 || config.widthMm > 200) return "Label width must be between 25 and 200 mm.";
   if (!Number.isFinite(config.heightMm) || config.heightMm < 20 || config.heightMm > 200) return "Label height must be between 20 and 200 mm.";
   if (![203, 300, 600].includes(config.dpi)) return "Choose a supported printer resolution.";

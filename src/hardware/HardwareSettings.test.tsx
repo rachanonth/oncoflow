@@ -28,6 +28,7 @@ describe("HardwareSettings", () => {
     const html = renderToStaticMarkup(<HardwareSettingsView config={config} printers={["Synthetic TSPL queue", "Office printer"]} loading={false} busy={false} error={null} message={null} {...handlers} />);
     expect(html).toContain("Windows RAW spooler");
     expect(html).toContain("Synthetic TSPL queue");
+    expect(html).toContain("ZPL (Zebra)");
     expect(html).toContain("TSPL");
     expect(html).toContain("ESC/POS");
     expect(html).toContain("203 dpi");
@@ -56,5 +57,6 @@ describe("HardwareSettings", () => {
     expect(validatePrinterConfig({ ...config, gapMm: -1 })).toContain("gap");
     expect(validatePrinterConfig({ ...config, preprintHeaderSpacingMm: 60 })).toContain("Top spacing");
     expect(validatePrinterConfig({ ...config, fontSizes: { ...config.fontSizes, warning: 50 } })).toContain("Warning");
+    expect(validatePrinterConfig({ ...config, spoolerName: "ZDesigner ZD220-203dpi ZPL" })).toContain("ZPL");
   });
 });
