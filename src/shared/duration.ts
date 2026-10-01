@@ -1,4 +1,4 @@
-export type DurationUnit = "minute" | "hour";
+export type DurationUnit = "minute" | "hour" | "day";
 
 export interface ParsedDuration {
   original: string;
@@ -25,13 +25,13 @@ export function parseDuration(
     }
   }
 
-  const text = /^(?:(?:over|in|drip\s+in)\s+)?(-?(?:\d+(?:\.\d*)?|\.\d+)|\d+\/\d+)\s*(minutes?|mins?|hours?|hrs?)$/i.exec(original);
+  const text = /^(?:(?:over|in|drip\s+in)\s+)?(-?(?:\d+(?:\.\d*)?|\.\d+)|\d+\/\d+)\s*(minutes?|mins?|hours?|hrs?|days?)$/i.exec(original);
   if (!text) return { original, value: null, unit: defaultUnit };
 
   return {
     original,
     value: fractionToDecimal(text[1]),
-    unit: text[2].toLowerCase().startsWith("h") ? "hour" : "minute",
+    unit: text[2].toLowerCase().startsWith("d") ? "day" : text[2].toLowerCase().startsWith("h") ? "hour" : "minute",
   };
 }
 
@@ -43,18 +43,22 @@ export function convertDurationValue(
   if (from === to || !value.trim()) return value;
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return value;
-  return compactNumber(from === "minute" ? numeric / 60 : numeric * 60);
+  const minutesPerUnit = { minute: 1, hour: 60, day: 1440 };
+  return compactNumber(numeric * minutesPerUnit[from] / minutesPerUnit[to]);
 }
 
 export function serializeDuration(value: string, unit: DurationUnit): string {
   const trimmed = value.trim();
-  return trimmed ? `${trimmed} ${unit === "minute" ? "min" : "hr"}` : "";
+  return trimmed ? `${trimmed} ${unit === "minute" ? "min" : unit === "hour" ? "hr" : "day"}` : "";
 }
 
-export function displayDuration(rawValue: string | null, allowClock = false): string | null {
+export function displayDuration(rawValue: string | null, allowClock = false, minuteAsHours = false): string | null {
   const parsed = parseDuration(rawValue, { allowClock, defaultUnit: "hour" });
   if (!parsed.original) return null;
   if (parsed.value === null) return parsed.original;
+  if (minuteAsHours && parsed.unit === "minute") {
+    return serializeDuration(convertDurationValue(parsed.value, "minute", "hour"), "hour");
+  }
   return serializeDuration(parsed.value, parsed.unit);
 }
 

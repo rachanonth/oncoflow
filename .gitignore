@@ -11,6 +11,10 @@ target/
 *.laccdb
 *.db
 *.db-*
+server-private-key.der
+server-certificate.der
+oncoflow-server.lock
+connection.json
 *.sqlite
 *.sqlite3
 

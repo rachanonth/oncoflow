@@ -11,6 +11,17 @@ const rows: PreparationCountReportRow[] = [
 ];
 
 describe("PreparationCountReport", () => {
+  it("keeps actual cancelled work separate without losing it from totals", () => {
+    const mixed = [rows[0], { ...rows[0], cancelled: true, prescriptionCount: 1, bottleCount: 2 }];
+    for (const groupBy of ["drug", "pharmacist"] as const) {
+      const period = aggregateReportRows(mixed, groupBy)[0];
+      expect(period.items).toHaveLength(2);
+      expect(period.totalPrescriptions).toBe(4);
+      expect(period.totalBottles).toBe(7);
+      expect(period.items.find((item) => item.key.endsWith(":cancelled"))?.label).toContain("เตรียมแล้ว–ยกเลิก");
+      expect(renderToStaticMarkup(<PreparationCountTable interval="daily" rows={mixed} groupBy={groupBy} />)).toContain("เตรียมแล้ว–ยกเลิก");
+    }
+  });
   it("uses the requested default ranges", () => {
     expect(defaultReportRange("daily", "2026-08-28")).toEqual({ dateFrom: "2026-08-01", dateTo: "2026-08-31" });
     expect(defaultReportRange("weekly", "2026-08-28")).toEqual({ dateFrom: "2026-06-08", dateTo: "2026-08-30" });

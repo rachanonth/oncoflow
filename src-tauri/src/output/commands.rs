@@ -1,5 +1,5 @@
+use crate::command_state::State;
 use serde::Serialize;
-use tauri::State;
 
 use crate::{
     auth::{AuthError, AuthSession},

@@ -16,7 +16,7 @@ mod windows {
 
     use super::super::{HardwareError, PrintJobReceipt, LABEL_RENDERER_VERSION};
 
-    pub(super) fn list_printers() -> Result<Vec<String>, HardwareError> {
+    pub(crate) fn list_printers() -> Result<Vec<String>, HardwareError> {
         unsafe {
             let mut needed: DWORD = 0;
             let mut returned: DWORD = 0;
@@ -59,7 +59,7 @@ mod windows {
         }
     }
 
-    pub(super) fn submit_raw(
+    pub(crate) fn submit_raw(
         queue_name: &str,
         document_name: &str,
         bytes: &[u8],
@@ -147,12 +147,12 @@ mod windows {
 }
 
 #[cfg(windows)]
-pub(super) fn list_printers() -> Result<Vec<String>, super::HardwareError> {
+pub(crate) fn list_printers() -> Result<Vec<String>, super::HardwareError> {
     windows::list_printers()
 }
 
 #[cfg(windows)]
-pub(super) fn submit_raw(
+pub(crate) fn submit_raw(
     queue_name: &str,
     document_name: &str,
     bytes: &[u8],
@@ -161,12 +161,12 @@ pub(super) fn submit_raw(
 }
 
 #[cfg(not(windows))]
-pub(super) fn list_printers() -> Result<Vec<String>, super::HardwareError> {
+pub(crate) fn list_printers() -> Result<Vec<String>, super::HardwareError> {
     Err(super::HardwareError::UnsupportedPlatform)
 }
 
 #[cfg(not(windows))]
-pub(super) fn submit_raw(
+pub(crate) fn submit_raw(
     _queue_name: &str,
     _document_name: &str,
     _bytes: &[u8],

@@ -160,6 +160,10 @@ fn ensure_snapshot(
     connection: &rusqlite::Connection,
     preparation_id: i64,
 ) -> Result<PreparationOutput, OutputError> {
+    let cancelled: bool = connection.query_row("SELECT EXISTS(SELECT 1 FROM preparation_tasks WHERE id=?1 AND cancellation_id IS NOT NULL)", [preparation_id], |row| row.get(0))?;
+    if cancelled {
+        return Err(OutputError::InvalidSelection);
+    }
     if let Some(output) = repository::load_snapshot(connection, preparation_id)? {
         return Ok(output);
     }
@@ -217,9 +221,11 @@ mod tests {
                        (2,'SYN-D2','Synthetic pending drug',1,0,NULL,NULL,NULL,NULL,NULL),
                        (3,'SYN-D3','Synthetic prepared drug',1,0,NULL,NULL,NULL,NULL,NULL),
                        (4,'SYN-D4','Synthetic rollback drug',1,0,NULL,NULL,NULL,NULL,NULL);
+                     INSERT INTO wards(id,legacy_wcode,ward_name) VALUES(1,'SYN-W','หอทดสอบ');
                      INSERT INTO orders(
                        id,legacy_orderid,patient_id,regimen_id,order_time,oncoflow_created
                      ) VALUES(10,'OF-SYN-10',1,1,'2026-08-23T09:00:00',1);
+                     UPDATE orders SET ward_id=1 WHERE id=10;
                      INSERT INTO order_items(id,order_id,drug_id,dose,ordering_no)
                      VALUES(11,10,1,100.5,1),(12,10,2,10,2),(13,10,3,20,3),
                            (14,10,4,30,4);
@@ -281,6 +287,86 @@ mod tests {
     }
 
     #[test]
+    fn cancellation_blocks_existing_label_snapshot_and_preserves_posted_stock() {
+        use crate::order::{
+            cancellation::{CancelOrderInput, CancellationDecision},
+            OrderService,
+        };
+        use crate::report::{InventoryUsageReportRequest, ReportInterval, ReportService};
+        let f = Fixture::new();
+        f.service().get_preparation_output(10).unwrap();
+        f.service()
+            .record_label_print_request(10, "synthetic", "synthetic-v1")
+            .unwrap();
+        let orders = OrderService::new(&f.database);
+        let preview = orders.cancellation_preview(10, Some(11)).unwrap();
+        assert!(preview.tasks[0].printed);
+        assert_eq!(preview.tasks[0].inventory_status.as_deref(), Some("posted"));
+        orders
+            .cancel(
+                10,
+                CancelOrderInput {
+                    item_id: Some(11),
+                    revision: preview.revision,
+                    reason: "Synthetic excess drug".into(),
+                    acknowledged: true,
+                    tasks: vec![CancellationDecision {
+                        task_id: 10,
+                        actually_prepared: false,
+                    }],
+                },
+                f.user_id,
+            )
+            .unwrap();
+        assert!(f.service().get_preparation_output(10).is_err());
+        assert!(f
+            .service()
+            .record_label_print_request(10, "synthetic", "synthetic-v1")
+            .is_err());
+        assert!(f.service().get_order_outputs(10, &[10]).is_err());
+        let report = ReportService::new(&f.database, &f.session)
+            .inventory_usage(InventoryUsageReportRequest {
+                interval: ReportInterval::Daily,
+                date_from: "2026-08-23".into(),
+                date_to: "2026-08-23".into(),
+            })
+            .unwrap();
+        let row = report.rows.iter().find(|r| r.drug_id == 1).unwrap();
+        assert_eq!(row.prescription_count, 0);
+        assert_eq!(row.prepared_bottle_count, 0);
+        assert_eq!(row.issued_source_container_count, 3);
+        assert_eq!(row.cancelled_review_count, 1);
+        assert_eq!(row.current_stock, Some(-2.0));
+    }
+
+    #[test]
+    fn upgrades_old_label_snapshots_without_inventing_a_historical_ward() {
+        let fixture = Fixture::new();
+        let original = fixture.service().get_preparation_output(10).unwrap();
+        {
+            let connection = fixture.database.open().unwrap();
+            crate::order::cancellation::remove_schema_for_migration_test(&connection);
+            connection
+                .execute_batch(
+                    "ALTER TABLE preparation_output_snapshots DROP COLUMN ward_name;
+                 UPDATE app_meta SET value='19' WHERE key='schema_version';",
+                )
+                .unwrap();
+        }
+        let upgraded = Database::initialize(fixture.database.path()).unwrap();
+        assert_eq!(
+            upgraded.schema_version().unwrap(),
+            crate::db::LATEST_SCHEMA_VERSION
+        );
+        let reprint = OutputService::new(&upgraded, &fixture.session)
+            .get_preparation_output(10)
+            .unwrap();
+        assert_eq!(reprint.label.snapshot_id, original.label.snapshot_id);
+        assert_eq!(reprint.label.patient_name, original.label.patient_name);
+        assert_eq!(reprint.label.ward_name, None);
+    }
+
+    #[test]
     fn verified_preparation_creates_typed_deterministic_thai_snapshot() {
         let fixture = Fixture::new();
         let first = fixture.service().get_preparation_output(10).unwrap();
@@ -289,6 +375,7 @@ mod tests {
             "oncoflow-preparation-label-v1"
         );
         assert_eq!(first.label.patient_identifier, "SYN-HN-001");
+        assert_eq!(first.label.ward_name.as_deref(), Some("หอทดสอบ"));
         assert_eq!(first.label.patient_name.as_deref(), Some("นาง ทดสอบ ระบบ"));
         assert_eq!(first.label.treatment_at.as_deref(), Some("2026-08-23"));
         assert_eq!(first.label.drug_name, "ยาเคมีบำบัดทดสอบ");
@@ -311,6 +398,8 @@ mod tests {
         connection
             .execute_batch(
                 "UPDATE patients SET first_name='Changed';
+                 UPDATE wards SET ward_name='Changed';
+                 UPDATE orders SET ward_id=NULL;
                  UPDATE regimens SET regimen_name='Changed';
                  UPDATE drugs SET drug_name='Changed',warning='Changed',expiry_time='1 hr';
                  UPDATE application_settings SET hospital_name='Changed';",
@@ -359,9 +448,17 @@ mod tests {
             .unwrap();
         let second = fixture.service().get_preparation_output(10).unwrap();
         assert_eq!(
-            first, second,
+            first.containers, second.containers,
             "reprint allocation must come from the frozen snapshot"
         );
+        assert_eq!(first.label.snapshot_id, second.label.snapshot_id);
+        assert_eq!(
+            first.label.ordered_dose_text,
+            second.label.ordered_dose_text
+        );
+        assert_eq!(first.label.final_volume_ml, second.label.final_volume_ml);
+        // Print time and expiry deliberately change on reprint, even though the
+        // preparation snapshot and its container allocation stay unchanged.
     }
 
     #[test]

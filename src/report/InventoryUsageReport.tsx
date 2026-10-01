@@ -99,6 +99,7 @@ export function InventoryUsageTable({ interval, rows }: { interval: ReportInterv
 function InventoryExceptions({ row }: { row: InventoryUsageReportRow }) {
   const items = [
     row.awaitingVerificationCount > 0 ? { tone: "waiting", label: `รอตรวจ ${row.awaitingVerificationCount}` } : null,
+    (row.cancelledReviewCount ?? 0) > 0 ? { tone: "manual", label: `ยกเลิก: ตรวจสอบ stock ${row.cancelledReviewCount}` } : null,
     row.manualReconciliationCount > 0 ? { tone: "manual", label: `กระทบยอดเอง ${row.manualReconciliationCount}` } : null,
     row.trackingDisabledCount > 0 ? { tone: "muted", label: `ไม่ติดตาม Stock ${row.trackingDisabledCount}` } : null,
     row.unrecordedInventoryCount > 0 ? { tone: "manual", label: `ไม่มีประวัติตัด ${row.unrecordedInventoryCount}` } : null,

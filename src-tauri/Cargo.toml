@@ -1,6 +1,6 @@
 [package]
 name = "oncoflow"
-version = "0.5.1"
+version = "0.5.11"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -9,6 +9,7 @@ default-run = "oncoflow"
 [features]
 default = []
 migration-cli = ["dep:clap"]
+server-cli = ["dep:clap"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -31,6 +32,7 @@ required-features = ["migration-cli"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+syn = { version = "2", features = ["full"] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
@@ -44,6 +46,14 @@ serde_json = "1"
 sha2 = "0.10"
 thiserror = "2"
 ab_glyph = "0.2"
+ttf-parser = "0.25.1"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rcgen = "0.14"
+
+[[bin]]
+name = "oncoflow-server"
+path = "src/bin/oncoflow_server.rs"
+required-features = ["server-cli"]
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["errhandlingapi", "minwindef", "winspool"] }

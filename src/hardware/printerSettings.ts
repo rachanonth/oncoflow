@@ -1,4 +1,18 @@
-import type { LabelFontSizes, LabelPrinterConfig, PrinterLanguage } from "../types/hardware";
+import type { LabelFontSizes, LabelRowStyles, LabelPrinterConfig, PrinterLanguage } from "../types/hardware";
+
+export const LABEL_ROW_STYLES_KEY = "hardware_label_row_styles";
+export const DEFAULT_LABEL_ROW_STYLES: LabelRowStyles = {
+  header: { bold: false, underline: false },
+  patient: { bold: false, underline: false },
+  withdrawal: { bold: false, underline: false },
+  drug: { bold: false, underline: false },
+  diluent: { bold: false, underline: false },
+  routeRate: { bold: false, underline: false },
+  storage: { bold: false, underline: false },
+  warning: { bold: false, underline: false },
+  preparedBy: { bold: false, underline: false },
+  expiration: { bold: false, underline: false },
+};
 
 export const LABEL_SPOOLER_KEY = "hardware_label_spooler";
 export const LABEL_LANGUAGE_KEY = "hardware_label_type";
@@ -7,6 +21,7 @@ export const LABEL_HEIGHT_KEY = "hardware_label_height_mm";
 export const LABEL_DPI_KEY = "hardware_label_dpi";
 export const LABEL_GAP_KEY = "hardware_label_gap_mm";
 export const LABEL_PREPRINT_HEADER_SPACING_KEY = "hardware_label_preprint_header_spacing_mm";
+export const LABEL_FONT_NAME_KEY = "hardware_label_font_name";
 export const LABEL_FONT_SIZES_KEY = "hardware_label_font_sizes";
 
 export const DEFAULT_LABEL_FONT_SIZES: LabelFontSizes = {
@@ -23,12 +38,14 @@ export const DEFAULT_LABEL_FONT_SIZES: LabelFontSizes = {
 
 export const DEFAULT_LABEL_PRINTER: Omit<LabelPrinterConfig, "spoolerName"> = {
   language: "tspl",
-  widthMm: 100,
+  widthMm: 80,
   heightMm: 70,
   dpi: 203,
   gapMm: 3,
   preprintHeaderSpacingMm: 5,
   fontSizes: DEFAULT_LABEL_FONT_SIZES,
+  fontName: null,
+  rowStyles: DEFAULT_LABEL_ROW_STYLES,
 };
 
 export function loadLabelPrinterConfig(): LabelPrinterConfig | null {
@@ -49,6 +66,8 @@ export function loadLabelPrinterConfig(): LabelPrinterConfig | null {
       gapMm: readNumber(LABEL_GAP_KEY, DEFAULT_LABEL_PRINTER.gapMm, true),
       preprintHeaderSpacingMm: readNumber(LABEL_PREPRINT_HEADER_SPACING_KEY, DEFAULT_LABEL_PRINTER.preprintHeaderSpacingMm, true),
       fontSizes: readFontSizes(),
+      rowStyles: readRowStyles(),
+      fontName: window.localStorage.getItem(LABEL_FONT_NAME_KEY)?.trim() || null,
     };
   } catch {
     return null;
@@ -72,6 +91,17 @@ export function saveLabelPrinterConfig(config: LabelPrinterConfig): void {
   window.localStorage.setItem(LABEL_GAP_KEY, `${config.gapMm}`);
   window.localStorage.setItem(LABEL_PREPRINT_HEADER_SPACING_KEY, `${config.preprintHeaderSpacingMm}`);
   window.localStorage.setItem(LABEL_FONT_SIZES_KEY, JSON.stringify(config.fontSizes));
+  window.localStorage.setItem(LABEL_FONT_NAME_KEY, config.fontName ?? "");
+  window.localStorage.setItem(LABEL_ROW_STYLES_KEY, JSON.stringify(config.rowStyles ?? DEFAULT_LABEL_ROW_STYLES));
+}
+
+function readRowStyles(): LabelRowStyles {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(LABEL_ROW_STYLES_KEY) ?? "{}");
+    return Object.fromEntries(Object.keys(DEFAULT_LABEL_ROW_STYLES).map(key => [key, {
+      bold: saved?.[key]?.bold === true, underline: saved?.[key]?.underline === true,
+    }])) as LabelRowStyles;
+  } catch { return DEFAULT_LABEL_ROW_STYLES; }
 }
 
 function readFontSizes(): LabelFontSizes {

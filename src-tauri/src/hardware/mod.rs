@@ -1,7 +1,8 @@
 pub(crate) mod commands;
+pub(crate) mod fonts;
 mod model;
-mod renderer;
-mod spooler;
+pub(crate) mod renderer;
+pub(crate) mod spooler;
 
 use thiserror::Error;
 

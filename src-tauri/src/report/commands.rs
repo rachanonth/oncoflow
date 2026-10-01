@@ -1,5 +1,27 @@
+use crate::command_state::State;
 use serde::Serialize;
-use tauri::State;
+
+#[tauri::command]
+pub(crate) fn get_diluent_usage_report(
+    database: State<'_, Database>,
+    session: State<'_, AuthSession>,
+    request: super::DiluentUsageReportRequest,
+) -> Result<super::DiluentUsageReport, CommandError> {
+    ReportService::new(&database, &session)
+        .diluent_usage(request)
+        .map_err(Into::into)
+}
+
+#[tauri::command]
+pub(crate) fn get_ward_delivery_report(
+    database: State<'_, Database>,
+    session: State<'_, AuthSession>,
+    request: super::WardDeliveryReportRequest,
+) -> Result<super::WardDeliveryReport, CommandError> {
+    ReportService::new(&database, &session)
+        .ward_delivery(request)
+        .map_err(Into::into)
+}
 
 use crate::{
     auth::{AuthError, AuthSession},

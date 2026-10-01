@@ -91,7 +91,7 @@ pub(super) fn list_queue(
     let eligible_active_item = active_item_sql("eligible");
     let filters = format!(
         "o.oncoflow_created=1
-        AND o.workflow_status='active'
+        AND o.workflow_status='active' AND o.cancellation_id IS NULL
         AND (?1='%%' OR o.legacy_orderid LIKE ?1 ESCAPE '\\' COLLATE NOCASE
              OR p.legacy_hn LIKE ?1 ESCAPE '\\' COLLATE NOCASE
              OR p.first_name LIKE ?1 ESCAPE '\\' COLLATE NOCASE
@@ -223,7 +223,7 @@ pub(super) fn load_header(
         .query_row(
             "SELECT o.id,o.legacy_orderid,p.legacy_hn,
                     trim(COALESCE(p.title,'') || ' ' || COALESCE(p.first_name,'') || ' ' || COALESCE(p.last_name,'')),
-                    w.ward_name,r.regimen_name,o.order_time,o.oncoflow_created,o.workflow_status,
+                    w.ward_name,r.regimen_name,o.order_time,(o.oncoflow_created=1 AND o.cancellation_id IS NULL),CASE WHEN o.cancellation_id IS NOT NULL THEN 'cancelled' ELSE o.workflow_status END,
                     preparer.id,COALESCE(preparer.display_name,preparer.username),preparer.role
              FROM orders o
              JOIN patients p ON p.id=o.patient_id
@@ -309,7 +309,7 @@ fn active_item_sql(alias: &str) -> String {
     let rescheduled_due = due_on_date_sql(alias, "source_event.related_date");
     format!(
         "(
-          ?4 IS NULL OR (
+          {alias}.cancellation_id IS NULL AND (?4 IS NULL OR (
             (
               ({normal_due})
               AND NOT EXISTS(
@@ -338,7 +338,7 @@ fn active_item_sql(alias: &str) -> String {
                 AND ({rescheduled_due})
             )
           )
-        )"
+        ))"
     )
 }
 
@@ -383,7 +383,7 @@ pub(super) fn load_source_items(
              LEFT JOIN units u ON u.id=d.unit_id
              LEFT JOIN diluents dl ON dl.id=i.diluent_id
              LEFT JOIN routes rt ON rt.id=i.route_id
-             WHERE i.order_id=?1
+             WHERE i.order_id=?1 AND i.cancellation_id IS NULL
              ORDER BY CASE WHEN i.ordering_no IS NULL THEN 1 ELSE 0 END,i.ordering_no,i.id",
         )?
         .query_map([order_id], |row| {
@@ -424,7 +424,7 @@ pub(super) fn load_source_snapshot(
              LEFT JOIN units u ON u.id=d.unit_id
              LEFT JOIN diluents dl ON dl.id=i.diluent_id
              LEFT JOIN routes rt ON rt.id=i.route_id
-             WHERE i.id=?1",
+             WHERE i.id=?1 AND i.cancellation_id IS NULL",
             [order_item_id],
             map_source_snapshot,
         )
@@ -543,7 +543,7 @@ pub(super) fn load_task_for_item_on_date(
 ) -> rusqlite::Result<Option<PreparationTask>> {
     connection
         .query_row(
-            &task_select("WHERE t.source_order_item_id=?1 AND t.preparation_date=?2"),
+            &task_select("WHERE t.cancellation_id IS NULL AND t.source_order_item_id=?1 AND t.preparation_date=?2"),
             params![order_item_id, preparation_date],
             map_task,
         )
@@ -555,7 +555,11 @@ pub(super) fn load_task(
     task_id: i64,
 ) -> rusqlite::Result<Option<PreparationTask>> {
     connection
-        .query_row(&task_select("WHERE t.id=?1"), [task_id], map_task)
+        .query_row(
+            &task_select("WHERE t.id=?1 AND t.cancellation_id IS NULL"),
+            [task_id],
+            map_task,
+        )
         .optional()
 }
 
@@ -566,7 +570,7 @@ pub(super) fn load_tasks_for_order_on_date(
 ) -> rusqlite::Result<Vec<PreparationTask>> {
     connection
         .prepare(&task_select(
-            "WHERE t.source_order_id=?1 AND t.preparation_date=?2 ORDER BY t.id",
+            "WHERE t.cancellation_id IS NULL AND t.source_order_id=?1 AND t.preparation_date=?2 ORDER BY t.id",
         ))?
         .query_map(params![order_id, preparation_date], map_task)?
         .collect()

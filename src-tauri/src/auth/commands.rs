@@ -1,5 +1,5 @@
+use crate::command_state::State;
 use serde::Serialize;
-use tauri::State;
 
 use crate::db::Database;
 
@@ -165,5 +165,17 @@ pub(crate) fn update_user(
 ) -> Result<ManagedUser, CommandError> {
     AuthService::new(&database, &session)
         .update_user(user_id, input)
+        .map_err(Into::into)
+}
+
+#[tauri::command]
+pub(crate) fn reset_user_password(
+    database: State<'_, Database>,
+    session: State<'_, AuthSession>,
+    user_id: i64,
+    new_password: String,
+) -> Result<(), CommandError> {
+    AuthService::new(&database, &session)
+        .reset_user_password(user_id, new_password)
         .map_err(Into::into)
 }

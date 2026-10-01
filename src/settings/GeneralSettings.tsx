@@ -1,3 +1,4 @@
+import { editFormKeyboard } from "../components/editFormKeyboard";
 import { useEffect, useState } from "react";
 
 import { commandError, getApplicationSettings, updateApplicationSettings } from "../api/commands";
@@ -39,11 +40,11 @@ export function GeneralSettings() {
 
   return <section className="workspace guidance-workspace" aria-labelledby="general-settings-heading">
     <div className="page-heading"><div><p className="eyebrow">Settings</p><h1 id="general-settings-heading">General</h1><PageDescription pageKey="general" /></div></div>
-    <section className="surface guidance-editor">
+    <section onKeyDownCapture={editFormKeyboard} className="surface guidance-editor">
       <div className="guidance-editor__heading"><div><p className="eyebrow">Organization identity</p><h2>Hospital name</h2></div><span>{value.trim().length} / 160</span></div>
       <label className="form-field"><span className="field-label">Hospital name</span><input value={value} maxLength={160} disabled={loading || busy} placeholder="e.g. โรงพยาบาลตัวอย่าง" onChange={(event) => { setValue(event.target.value); setMessage(null); }} /><small>Displayed after the OncoFlow application name on the Working Formula. Leave blank to show only OncoFlow.</small></label>
       {message && <div className={message.tone === "success" ? "auth-success" : "auth-error"} role={message.tone === "error" ? "alert" : "status"}>{message.text}</div>}
-      <div className="guidance-editor__actions"><button className="button button--secondary" type="button" disabled={loading || busy || !value} onClick={() => setValue("")}>Clear</button><button className="button button--primary" type="button" disabled={loading || busy} onClick={() => void save()}>{busy ? "Saving…" : "Save settings"}</button></div>
+      <div className="guidance-editor__actions"><button className="button button--secondary" type="button" disabled={loading || busy || !value} onClick={() => setValue("")}>Clear</button><button className="button button--primary" type="button" disabled={loading || busy} data-editor-save onClick={() => void save()}>{busy ? "Saving…" : "Save settings"}</button></div>
     </section>
   </section>;
 }

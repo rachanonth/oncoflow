@@ -2,7 +2,7 @@ use serde::Serialize;
 
 pub(crate) const PREPARATION_LABEL_TEMPLATE_VERSION: &str = "oncoflow-preparation-label-v1";
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PreparationLabelData {
     pub snapshot_id: i64,
@@ -15,6 +15,7 @@ pub(crate) struct PreparationLabelData {
     pub order_reference: String,
     pub patient_identifier: String,
     pub patient_name: Option<String>,
+    pub ward_name: Option<String>,
     pub hospital_name: Option<String>,
     pub regimen_name: Option<String>,
     pub treatment_at: Option<String>,
@@ -38,13 +39,13 @@ pub(crate) struct PreparationLabelData {
     pub verified_at: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PreparationSummaryData {
     pub preparation_instructions: Option<String>,
     pub preparation_notes: Option<String>,
     pub storage_reference: Option<String>,
-    pub safety_review_status: &'static str,
+    pub safety_review_status: String,
     pub inventory_posting_status: Option<String>,
     pub inventory_movement_id: Option<i64>,
     pub containers_required: Option<i64>,
@@ -53,10 +54,10 @@ pub(crate) struct PreparationSummaryData {
     pub inventory_stock_state: Option<String>,
     pub calculation_ruleset_version: Option<String>,
     pub calculation_rule_id: Option<String>,
-    pub presentation_notice: &'static str,
+    pub presentation_notice: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PreparationOutput {
     pub label: PreparationLabelData,
@@ -80,6 +81,7 @@ pub(super) struct OutputSource {
     pub order_reference: String,
     pub patient_identifier: String,
     pub patient_name: Option<String>,
+    pub ward_name: Option<String>,
     pub regimen_name: Option<String>,
     pub treatment_at: Option<String>,
     pub treatment_day: Option<String>,

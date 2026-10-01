@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import type { ManagedUser } from "../types/auth";
-import { AccessLevelSelect, UserTable, validateManagedUser } from "./UserManagement";
+import { AccessLevelSelect, PasswordResetEditor, UserTable, validateManagedUser, validatePasswordReset } from "./UserManagement";
 
 const users: ManagedUser[] = [
   {
@@ -63,5 +63,25 @@ describe("UserManagement", () => {
     expect(html).toContain("Standard");
     expect(html).toContain("Administrator");
     expect(html).toContain('value="admin" selected=""');
+  });
+});
+
+describe("Admin password reset", () => {
+  it("requires a strong confirmed replacement", () => {
+    expect(validatePasswordReset("admin", "", "")).toBeTruthy();
+    expect(validatePasswordReset("long.username", "LONG.USERNAME", "LONG.USERNAME")).toBeTruthy();
+    expect(validatePasswordReset("admin", "new-password-123", "different")).toBeTruthy();
+    expect(validatePasswordReset("admin", "new-password-123", "new-password-123")).toBeNull();
+  });
+  it("identifies the target and consequences without asking for the old password", () => {
+    const html = renderToStaticMarkup(<PasswordResetEditor user={users[1]} onBusy={() => undefined} onCancel={() => undefined} onDone={() => undefined} />);
+    expect(html).toContain("local.support");
+    expect(html).toContain("existing sessions will end");
+    expect(html).toContain("Confirm password reset");
+    expect(html).not.toContain("current-password");
+  });
+  it("disables reset for the signed-in administrator", () => {
+    const html = renderToStaticMarkup(<UserTable users={[users[0]]} currentUserId={1} loading={false} onEdit={() => undefined} onReset={() => undefined} />);
+    expect(html).toMatch(/disabled=""[^>]*>Reset password/);
   });
 });

@@ -545,6 +545,8 @@ fn rc1_case_e_thai_search_persistence_output_and_rasterization_are_lossless() {
         gap_mm: 3.0,
         preprint_header_spacing_mm: 5.0,
         font_sizes: Default::default(),
+        font_name: None,
+        row_styles: Default::default(),
     };
     let first = render_preparation_label(&output, &config).unwrap();
     let second = render_preparation_label(&output, &config).unwrap();

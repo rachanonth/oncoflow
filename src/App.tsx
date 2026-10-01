@@ -32,6 +32,8 @@ import { DiagnosisPage } from "./master_data/DiagnosisPage";
 import { GuidanceSettings } from "./guidance/GuidanceSettings";
 import { PageGuidanceProvider } from "./guidance/PageGuidance";
 import { GeneralSettings } from "./settings/GeneralSettings";
+import { ConnectionGate } from "./settings/ConnectionSettings";
+import { isClientMode } from "./api/transport";
 import type { DrugDetail as DrugDetailType } from "./types/drug";
 import type { PatientDetail as PatientDetailType } from "./types/patient";
 import type { RegimenDetail as RegimenDetailType } from "./types/regimen";
@@ -75,15 +77,19 @@ type View =
   | { kind: "status" };
 
 export default function App() {
+  return <ConnectionGate><ConnectedApp /></ConnectionGate>;
+}
+
+function ConnectedApp() {
   const [startup, setStartup] = useState<{ loading: boolean; status: StartupStatus | null; error: string | null }>({ loading: true, status: null, error: null });
   const loadStartup = useCallback(async () => {
     setStartup({ loading: true, status: null, error: null });
     try { setStartup({ loading: false, status: await getStartupStatus(), error: null }); }
-    catch (error) { setStartup({ loading: false, status: null, error: error instanceof Error ? error.message : String(error) }); }
+    catch (error) { setStartup({ loading: false, status: null, error: (error as { message?: string } | null)?.message ?? String(error) }); }
   }, []);
   useEffect(() => { void loadStartup(); }, [loadStartup]);
-  if (startup.loading) return <AuthFrame eyebrow="Local startup" title="Opening OncoFlow" summary="Checking the local SQLite database before clinical data is loaded."><div className="auth-loading" aria-busy="true">Preparing the local workspace…</div></AuthFrame>;
-  if (!startup.status) return <AuthFrame eyebrow="Local startup" title="Startup status unavailable" summary="OncoFlow could not determine whether the local database is safe to open."><div className="auth-error" role="alert">{startup.error ?? "Unknown local startup error."}</div><button className="button button--secondary auth-submit" type="button" onClick={() => void loadStartup()}>Try again</button></AuthFrame>;
+  if (startup.loading) return <AuthFrame eyebrow="Startup" title="Opening OncoFlow" summary="Checking the configured database before clinical data is loaded."><div className="auth-loading" aria-busy="true">Preparing the workspace…</div></AuthFrame>;
+  if (!startup.status) return <AuthFrame eyebrow="Startup" title="Startup status unavailable" summary="OncoFlow could not determine whether the configured database is available."><div className="auth-error" role="alert">{startup.error ?? "Unknown local startup error."}</div><button className="button button--secondary auth-submit" type="button" onClick={() => void loadStartup()}>Try again</button></AuthFrame>;
   if (!startup.status.databaseReady) return <DatabaseRecoveryScreen status={startup.status} onReady={(status) => setStartup({ loading: false, status, error: null })} />;
   return <AuthenticationGate />;
 }
@@ -93,11 +99,11 @@ function AuthenticationGate() {
   const loadAuth = useCallback(async () => {
     setAuth({ loading: true, state: null, error: null });
     try { setAuth({ loading: false, state: await getAuthState(), error: null }); }
-    catch (error) { setAuth({ loading: false, state: null, error: error instanceof Error ? error.message : String(error) }); }
+    catch (error) { setAuth({ loading: false, state: null, error: (error as { message?: string } | null)?.message ?? String(error) }); }
   }, []);
   useEffect(() => { void loadAuth(); }, [loadAuth]);
-  if (auth.loading) return <AuthFrame eyebrow="Local startup" title="Opening OncoFlow" summary="Checking the local account and SQLite database."><div className="auth-loading" aria-busy="true">Preparing the local workspace…</div></AuthFrame>;
-  if (!auth.state) return <AuthFrame eyebrow="Local startup" title="Authentication unavailable" summary="The local account state could not be loaded."><div className="auth-error" role="alert">{auth.error ?? "Unknown local authentication error."}</div><button className="button button--secondary auth-submit" type="button" onClick={() => void loadAuth()}>Try again</button></AuthFrame>;
+  if (auth.loading) return <AuthFrame eyebrow="Startup" title="Opening OncoFlow" summary="Checking your account and the configured database."><div className="auth-loading" aria-busy="true">Preparing the local workspace…</div></AuthFrame>;
+  if (!auth.state) return <AuthFrame eyebrow="Startup" title="Authentication unavailable" summary="Your account state could not be loaded."><div className="auth-error" role="alert">{auth.error ?? "Unknown local authentication error."}</div><button className="button button--secondary auth-submit" type="button" onClick={() => void loadAuth()}>Try again</button></AuthFrame>;
   if (auth.state.needsBootstrap) return <FirstRunSetup onAuthenticated={(state) => setAuth({ loading: false, state, error: null })} />;
   if (!auth.state.authenticated || !auth.state.currentUser) return <LoginScreen onAuthenticated={(state) => setAuth({ loading: false, state, error: null })} />;
   return <AuthenticatedApp user={auth.state.currentUser} onAuthState={(state) => setAuth({ loading: false, state, error: null })} />;
@@ -134,7 +140,7 @@ function AuthenticatedApp({ user, onAuthState }: { user: CurrentUser; onAuthStat
   async function signOut() {
     setLogoutError(null); setLogoutBusy(true);
     try { onAuthState(await logoutUser()); }
-    catch (error) { setLogoutError(error instanceof Error ? error.message : String(error)); }
+    catch (error) { setLogoutError((error as { message?: string } | null)?.message ?? String(error)); }
     finally { setLogoutBusy(false); }
   }
 
@@ -514,7 +520,7 @@ function AuthenticatedApp({ user, onAuthState }: { user: CurrentUser; onAuthStat
         {view.kind === "routesMaster" && user.role === "admin" && <RoutesPage />}
         {view.kind === "diagnosesMaster" && user.role === "admin" && <DiagnosisPage />}
         {view.kind === "hardware" && <HardwareSettings />}
-        {view.kind === "backup" && <BackupRestore />}
+          {view.kind === "backup" && (isClientMode() ? <section className="workspace"><h1>Server backups and recovery</h1><p>The shared database is stored on the server PC. Your administrator must make backups and perform restores there.</p><p>All users must disconnect before server maintenance. This client does not keep an offline database copy.</p></section> : <BackupRestore />)}
         {view.kind === "status" && <Diagnostics />}
       </main>
     </div>

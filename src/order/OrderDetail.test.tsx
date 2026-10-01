@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { OrderDetail as Detail, OrderItemDetail } from "../types/order";
 import { PatientOrderHistory, PatientOrderHistoryTable } from "./PatientOrderHistory";
+import { OrderCancellation } from "./OrderCancellation";
 import { calculateBodySurfaceArea, OrderCumulativeDose, OrderDetailHeader, OrderDrugsTable, OrderMeasurements, OrderStatusPanel, OrderSummary } from "./OrderDetail";
 
 const order: Detail = {
@@ -75,6 +76,26 @@ const drug: OrderItemDetail = {
 };
 
 describe("order detail presentation", () => {
+  it("retains cancelled lines with no edit or remove actions", () => {
+    const html = renderToStaticMarkup(<OrderDrugsTable order={{ ...order, items: [{ ...drug, cancelled: true }] }} mutating={false} onMove={() => undefined} onEdit={() => undefined} onRemove={() => undefined} />);
+    expect(html).toContain(drug.drugName);
+    expect(html).toContain("ยกเลิก");
+    expect(html).not.toContain("<button");
+  });
+
+  it("shows cancellation scope and retains reason, actor and actual work history", () => {
+    const active = renderToStaticMarkup(<OrderCancellation order={{ ...order, items: [drug] }} onSaved={() => undefined} />);
+    expect(active).toContain("ทุกวันของรายการที่เลือก");
+    expect(active).toContain("ตรวจสอบผลกระทบก่อนยกเลิก");
+    expect(active).not.toContain("ยืนยันยกเลิกและเก็บประวัติ");
+    const cancelled = { ...order, editable: false, workflowStatus: "cancelled" as const, items: [{ ...drug, cancelled: true }], cancellations: [{ id: 1, itemId: null, reason: "คีย์ผิดคน", actorName: "ผู้ทดสอบ", occurredAt: "2026-09-29 10:00:00", tasks: [{ id: 1, itemId: drug.id, drugName: drug.drugName, preparationDate: "2026-09-29", state: "verified", finalContainerCount: 1, inventoryStatus: "posted", printed: true, actuallyPrepared: true }] }] };
+    const history = renderToStaticMarkup(<OrderCancellation order={cancelled} onSaved={() => undefined} />);
+    for (const text of ["คีย์ผิดคน", "ผู้ทดสอบ", "เตรียมแล้ว–ยกเลิก", "ตรวจสอบ stock"]) expect(history).toContain(text);
+    expect(history).not.toContain("ตรวจสอบผลกระทบก่อนยกเลิก");
+    const header = renderToStaticMarkup(<OrderDetailHeader order={cancelled} onEdit={() => undefined} />);
+    expect(header).toContain("ยกเลิก");
+    expect(header).not.toContain('title="Edit order"');
+  });
   it("puts patient identity first and uses a pencil-only edit action", () => {
     const html = renderToStaticMarkup(<OrderDetailHeader order={order} onEdit={() => undefined} />);
 

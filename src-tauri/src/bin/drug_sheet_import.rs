@@ -1,5 +1,6 @@
 //! Offline, explicit drug-master update from a reviewed Google Sheets values snapshot.
-//! Never imports stock balances, deletes drugs, or changes existing identifiers.
+//! Default mode preserves stock and identifiers. Explicit catalog replacement
+//! supports reviewed code reassignment and obsolete-record cleanup with a backup.
 use clap::Parser;
 use rusqlite::{params_from_iter, types::Value, Connection, OpenFlags};
 use serde_json::json;
@@ -10,8 +11,17 @@ use std::{
     time::Duration,
 };
 
+#[path = "../bin_support/drug_catalog_replacement.rs"]
+mod replacement;
+
 #[derive(Parser)]
 struct Args {
+    /// Replace the catalog from the reviewed 28-column clinical sheet.
+    #[arg(long)]
+    replace_catalog: bool,
+    /// Remove complete regimen groups that contain a removed drug.
+    #[arg(long, requires = "replace_catalog")]
+    remove_affected_regimen_groups: bool,
     #[arg(long)]
     database: PathBuf,
     #[arg(long)]
@@ -204,6 +214,9 @@ fn validate(c: &Connection) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn run(a: Args) -> Result<(), Box<dyn std::error::Error>> {
+    if a.replace_catalog {
+        return replacement::run(&a);
+    }
     let bytes = std::fs::read(&a.input)?;
     let rows: Vec<Vec<String>> = serde_json::from_slice(&bytes)?;
     if rows
@@ -414,6 +427,8 @@ mod tests {
         .unwrap();
         let backup = dir.path().join("backup.db");
         let args = |apply, backup| Args {
+            replace_catalog: false,
+            remove_affected_regimen_groups: false,
             database: db.clone(),
             input: input.clone(),
             source_url: "synthetic-source".into(),

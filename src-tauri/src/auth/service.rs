@@ -6,6 +6,7 @@ use argon2::{
 };
 use rusqlite::TransactionBehavior;
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 use crate::db::{Database, DatabaseError};
@@ -56,14 +57,14 @@ pub(crate) enum AuthError {
 
 #[derive(Debug, Default)]
 pub(crate) struct AuthSession {
-    current: Mutex<Option<CurrentUser>>,
+    current: Mutex<Option<(CurrentUser, [u8; 32])>>,
 }
 
 impl AuthSession {
     pub(crate) fn current_user(&self) -> Result<Option<CurrentUser>, AuthError> {
         self.current
             .lock()
-            .map(|value| value.clone())
+            .map(|value| value.as_ref().map(|(user, _)| user.clone()))
             .map_err(|_| AuthError::SessionUnavailable)
     }
 
@@ -72,11 +73,23 @@ impl AuthSession {
             .ok_or(AuthError::AuthenticationRequired)
     }
 
-    fn set(&self, user: CurrentUser) -> Result<(), AuthError> {
+    fn credential_matches(&self, hash: &str) -> Result<bool, AuthError> {
+        let current = self
+            .current
+            .lock()
+            .map_err(|_| AuthError::SessionUnavailable)?;
+        let fingerprint: [u8; 32] = Sha256::digest(hash.as_bytes()).into();
+        Ok(current
+            .as_ref()
+            .is_some_and(|(_, saved)| *saved == fingerprint))
+    }
+
+    fn set(&self, user: CurrentUser, hash: &str) -> Result<(), AuthError> {
         *self
             .current
             .lock()
-            .map_err(|_| AuthError::SessionUnavailable)? = Some(user);
+            .map_err(|_| AuthError::SessionUnavailable)? =
+            Some((user, Sha256::digest(hash.as_bytes()).into()));
         Ok(())
     }
 
@@ -104,7 +117,13 @@ impl<'a> AuthService<'a> {
         let needs_bootstrap = !repository::active_modern_user_exists(&connection)?;
         let current_user = match self.session.current_user()? {
             Some(current) => match repository::load_credential_by_id(&connection, current.id)? {
-                Some(record) if record.active && record.credential_kind == "argon2id" => {
+                Some(record)
+                    if record.active
+                        && record.credential_kind == "argon2id"
+                        && self.session.credential_matches(&record.password_hash)? =>
+                {
+                    self.session
+                        .set(record.user.clone(), &record.password_hash)?;
                     Some(record.user)
                 }
                 _ => {
@@ -157,7 +176,7 @@ impl<'a> AuthService<'a> {
         transaction.commit()?;
         let record = repository::load_credential_by_id(&connection, user_id)?
             .ok_or(AuthError::InvalidCredentials)?;
-        self.session.set(record.user)?;
+        self.session.set(record.user, &record.password_hash)?;
         self.state()
     }
 
@@ -187,7 +206,7 @@ impl<'a> AuthService<'a> {
             &json!({"result":"success"}),
         )?;
         transaction.commit()?;
-        self.session.set(record.user)?;
+        self.session.set(record.user, &record.password_hash)?;
         self.state()
     }
 
@@ -240,6 +259,50 @@ impl<'a> AuthService<'a> {
             "password_changed",
             "user",
             user.id,
+            &json!({"credential_kind":"argon2id"}),
+        )?;
+        transaction.commit()?;
+        self.session.set(user, &password_hash)?;
+        Ok(())
+    }
+
+    pub(crate) fn reset_user_password(
+        &self,
+        user_id: i64,
+        new_password: String,
+    ) -> Result<(), AuthError> {
+        let actor = self.require_admin()?;
+        if actor.id == user_id {
+            return Err(validation(
+                "userId",
+                "Change your own password under Account",
+            ));
+        }
+        let mut connection = self.database.open()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let current_actor = repository::load_credential_by_id(&transaction, actor.id)?
+            .ok_or(AuthError::AuthenticationRequired)?;
+        if !current_actor.active
+            || !self
+                .session
+                .credential_matches(&current_actor.password_hash)?
+        {
+            return Err(AuthError::AuthenticationRequired);
+        }
+        if !current_actor.user.role.is_admin() {
+            return Err(AuthError::AdminRequired);
+        }
+        let target =
+            repository::load_managed_user(&transaction, user_id)?.ok_or(AuthError::UserNotFound)?;
+        validate_password(&new_password, &target.username)?;
+        let hash = hash_password(&new_password)?;
+        repository::reset_password(&transaction, user_id, &hash)?;
+        audit::append_event(
+            &transaction,
+            Some(actor.id),
+            "password_reset_by_admin",
+            "user",
+            user_id,
             &json!({"credential_kind":"argon2id"}),
         )?;
         transaction.commit()?;
@@ -328,7 +391,8 @@ impl<'a> AuthService<'a> {
         if actor.id == user_id {
             let credential = repository::load_credential_by_id(&connection, user_id)?
                 .ok_or(AuthError::UserNotFound)?;
-            self.session.set(credential.user)?;
+            self.session
+                .set(credential.user, &credential.password_hash)?;
         }
         Ok(managed)
     }
@@ -460,6 +524,170 @@ mod tests {
                 })
                 .unwrap()
         }
+    }
+
+    #[test]
+    fn admin_reset_revokes_sessions_and_preserves_identity_with_private_audit() {
+        let fixture = Fixture::new();
+        let admin = fixture.bootstrap().current_user.unwrap();
+        let service = fixture.service();
+        let target = service
+            .create_user(CreateUserInput {
+                username: "reset.target".into(),
+                display_name: "Synthetic user".into(),
+                password: PASSWORD.into(),
+                user_type: super::super::UserType::Pharmacist,
+            })
+            .unwrap();
+        let other_session = AuthSession::default();
+        let other = AuthService::new(&fixture.database, &other_session);
+        other
+            .login(LoginInput {
+                username: target.username.clone(),
+                password: PASSWORD.into(),
+            })
+            .unwrap();
+        assert!(matches!(
+            other.reset_user_password(admin.id, NEW_PASSWORD.into()),
+            Err(AuthError::AdminRequired)
+        ));
+        assert!(matches!(
+            service.reset_user_password(admin.id, NEW_PASSWORD.into()),
+            Err(AuthError::Validation { .. })
+        ));
+        assert!(matches!(
+            service.reset_user_password(target.id, "short".into()),
+            Err(AuthError::Validation { .. })
+        ));
+        assert!(matches!(
+            service.reset_user_password(i64::MAX, NEW_PASSWORD.into()),
+            Err(AuthError::UserNotFound)
+        ));
+        service
+            .reset_user_password(target.id, NEW_PASSWORD.into())
+            .unwrap();
+        assert!(matches!(
+            other.current_user(),
+            Err(AuthError::AuthenticationRequired)
+        ));
+        assert!(matches!(
+            other.login(LoginInput {
+                username: target.username.clone(),
+                password: PASSWORD.into()
+            }),
+            Err(AuthError::InvalidCredentials)
+        ));
+        assert!(
+            other
+                .login(LoginInput {
+                    username: target.username.clone(),
+                    password: NEW_PASSWORD.into()
+                })
+                .unwrap()
+                .authenticated
+        );
+        let connection = fixture.database.open().unwrap();
+        let (actor, entity, metadata): (i64, String, String) = connection.query_row("SELECT user_id,entity_id,metadata_json FROM audit_events WHERE event_type='password_reset_by_admin'", [], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).unwrap();
+        assert_eq!(actor, admin.id);
+        assert_eq!(entity, target.id.to_string());
+        assert_eq!(metadata, r#"{"credential_kind":"argon2id"}"#);
+        let saved = repository::load_managed_user(&connection, target.id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(saved.username, target.username);
+        assert_eq!(saved.role, target.role);
+        assert!(saved.active);
+        connection
+            .execute("UPDATE users SET active=0 WHERE id=?1", [target.id])
+            .unwrap();
+        service
+            .reset_user_password(target.id, PASSWORD.into())
+            .unwrap();
+        assert!(
+            !repository::load_managed_user(&connection, target.id)
+                .unwrap()
+                .unwrap()
+                .active
+        );
+        assert!(matches!(
+            other.login(LoginInput {
+                username: target.username,
+                password: PASSWORD.into()
+            }),
+            Err(AuthError::InactiveUser)
+        ));
+    }
+
+    #[test]
+    fn resetting_to_the_same_password_still_allows_login_and_revokes_old_session() {
+        let fixture = Fixture::new();
+        fixture.bootstrap();
+        let target = fixture
+            .service()
+            .create_user(CreateUserInput {
+                username: "same.password.test".into(),
+                display_name: "Synthetic account".into(),
+                password: PASSWORD.into(),
+                user_type: super::super::UserType::Pharmacist,
+            })
+            .unwrap();
+        let session = AuthSession::default();
+        let client = AuthService::new(&fixture.database, &session);
+        client
+            .login(LoginInput {
+                username: target.username.clone(),
+                password: PASSWORD.into(),
+            })
+            .unwrap();
+        fixture
+            .service()
+            .reset_user_password(target.id, PASSWORD.into())
+            .unwrap();
+        assert!(matches!(
+            client.current_user(),
+            Err(AuthError::AuthenticationRequired)
+        ));
+        assert!(
+            client
+                .login(LoginInput {
+                    username: target.username,
+                    password: PASSWORD.into()
+                })
+                .unwrap()
+                .authenticated
+        );
+    }
+
+    #[test]
+    fn admin_reset_requires_authentication_and_rolls_back_on_audit_failure() {
+        let fixture = Fixture::new();
+        assert!(matches!(
+            fixture
+                .service()
+                .reset_user_password(1, NEW_PASSWORD.into()),
+            Err(AuthError::AuthenticationRequired)
+        ));
+        fixture.bootstrap();
+        let target = fixture
+            .service()
+            .create_user(CreateUserInput {
+                username: "reset.rollback".into(),
+                display_name: "Synthetic".into(),
+                password: PASSWORD.into(),
+                user_type: super::super::UserType::Pharmacist,
+            })
+            .unwrap();
+        let connection = fixture.database.open().unwrap();
+        connection.execute_batch("CREATE TRIGGER fail_reset BEFORE INSERT ON audit_events WHEN NEW.event_type='password_reset_by_admin' BEGIN SELECT RAISE(ABORT,'synthetic failure'); END;").unwrap();
+        assert!(fixture
+            .service()
+            .reset_user_password(target.id, NEW_PASSWORD.into())
+            .is_err());
+        let record = repository::load_credential_by_id(&connection, target.id)
+            .unwrap()
+            .unwrap();
+        assert!(verify_password(PASSWORD, &record.password_hash));
+        assert!(!verify_password(NEW_PASSWORD, &record.password_hash));
     }
 
     #[test]

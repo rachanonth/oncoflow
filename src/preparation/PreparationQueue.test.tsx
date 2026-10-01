@@ -33,6 +33,7 @@ describe("PreparationQueue", () => {
     expect(html).toContain(">Today order</button>");
     expect(html).toContain(">Continuing</button>");
     expect(html).toContain("Uses the current preparation view");
+    expect(html).toContain(">พิมพ์ใบส่งยา</button>");
     expect(html).not.toContain("Working formula date");
   });
 

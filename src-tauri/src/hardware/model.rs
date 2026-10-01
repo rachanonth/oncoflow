@@ -21,6 +21,10 @@ pub(crate) struct LabelPrinterConfig {
     pub preprint_header_spacing_mm: f32,
     #[serde(default)]
     pub font_sizes: LabelFontSizes,
+    #[serde(default)]
+    pub font_name: Option<String>,
+    #[serde(default)]
+    pub row_styles: LabelRowStyles,
 }
 
 const fn default_preprint_header_spacing_mm() -> f32 {
@@ -86,4 +90,26 @@ pub(crate) struct PrinterQueueStatus {
     pub available: bool,
     pub installed_queue_count: usize,
     pub physical_output_confirmed: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+#[serde(default)]
+pub(crate) struct LabelRowStyle {
+    pub bold: bool,
+    pub underline: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub(crate) struct LabelRowStyles {
+    pub header: LabelRowStyle,
+    pub patient: LabelRowStyle,
+    pub withdrawal: LabelRowStyle,
+    pub drug: LabelRowStyle,
+    pub diluent: LabelRowStyle,
+    pub route_rate: LabelRowStyle,
+    pub storage: LabelRowStyle,
+    pub warning: LabelRowStyle,
+    pub prepared_by: LabelRowStyle,
+    pub expiration: LabelRowStyle,
 }

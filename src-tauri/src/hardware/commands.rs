@@ -1,5 +1,5 @@
+use crate::command_state::State;
 use serde::Serialize;
-use tauri::State;
 
 use crate::{
     auth::{AuthError, AuthSession},
@@ -43,7 +43,7 @@ impl From<HardwareError> for CommandError {
             ),
             HardwareError::FontUnavailable => Self::plain(
                 "font_unavailable",
-                "A Thai-capable Windows font could not be loaded for label rendering.",
+                "The selected label font is unavailable. Install it on this PC or choose another Thai-capable font in Settings → Hardware.",
             ),
             HardwareError::WindowsSpooler { operation, code } => Self::plain(
                 "printer_error",
@@ -100,6 +100,14 @@ impl CommandError {
             field: None,
         }
     }
+}
+
+#[tauri::command]
+pub(crate) fn list_system_label_fonts(
+    session: State<'_, AuthSession>,
+) -> Result<Vec<String>, CommandError> {
+    session.require_user().map_err(HardwareError::from)?;
+    super::fonts::list_system_label_fonts().map_err(Into::into)
 }
 
 #[tauri::command]

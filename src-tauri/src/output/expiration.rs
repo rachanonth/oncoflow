@@ -74,6 +74,8 @@ fn parse_duration_seconds(value: &str) -> Option<i64> {
         60.0
     } else if parts[1].starts_with("h") {
         3_600.0
+    } else if matches!(parts[1], "day" | "days") {
+        86_400.0
     } else {
         return None;
     };
@@ -124,6 +126,31 @@ mod tests {
             expiration_at("2026-08-27T10:00:00", Some("90 min")).as_deref(),
             Some("2026-08-27T11:30:00")
         );
+    }
+
+    #[test]
+    fn day_expiry_matches_equivalent_hours_across_month_and_year_boundaries() {
+        for (start, days, hours, expected) in [
+            (
+                "2026-12-31T23:30:00",
+                "2 day",
+                "48 hr",
+                "2027-01-02T23:30:00",
+            ),
+            (
+                "2028-02-28T12:00:00",
+                "1.5 days",
+                "36 hr",
+                "2028-03-01T00:00:00",
+            ),
+        ] {
+            assert_eq!(expiration_at(start, Some(days)).as_deref(), Some(expected));
+            assert_eq!(
+                expiration_at(start, Some(days)),
+                expiration_at(start, Some(hours))
+            );
+        }
+        assert_eq!(expiration_at("2026-08-27T10:00:00", Some("-1 day")), None);
     }
 
     #[test]

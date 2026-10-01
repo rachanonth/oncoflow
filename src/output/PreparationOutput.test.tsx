@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PreparationOutput } from "../types/output";
 import { LABEL_DIMENSIONS, PreparationOutputView } from "./PreparationOutput";
+import { DEFAULT_LABEL_ROW_STYLES } from "../hardware/printerSettings";
 
 const output: PreparationOutput = {
   label: {
@@ -17,6 +18,7 @@ const output: PreparationOutput = {
     patientIdentifier: "SYN-HN",
     patientName: "ผู้ป่วยทดสอบ",
     hospitalName: "โรงพยาบาลทดสอบ",
+    wardName: "หอทดสอบ",
     regimenName: "สูตรสังเคราะห์",
     treatmentAt: "2026-08-23T09:00:00",
     treatmentDay: "Day 1",
@@ -66,23 +68,34 @@ const handlers = {
 };
 
 describe("PreparationOutput", () => {
+  it("styles every row independently", () => {
+    for (const key of Object.keys(DEFAULT_LABEL_ROW_STYLES) as Array<keyof typeof DEFAULT_LABEL_ROW_STYLES>) {
+      const rowStyles = { ...DEFAULT_LABEL_ROW_STYLES, [key]: { bold: true, underline: true } };
+      const html = renderToStaticMarkup(<PreparationOutputView output={output} rowStyles={rowStyles} dimensions={LABEL_DIMENSIONS[0]} busy={false} error={null} {...handlers} />);
+      expect(html).toContain(`data-label-row="${key}" style="--label-row-weight:700;text-decoration:underline"`);
+      expect(html.match(/--label-row-weight:700/g)).toHaveLength(1);
+      expect(html.match(/text-decoration:none/g)).toHaveLength(9);
+    }
+  });
   it("renders a verified Thai label and pharmacist preparation summary", () => {
     const html = renderToStaticMarkup(<PreparationOutputView output={output} dimensions={LABEL_DIMENSIONS[0]} busy={false} error={null} {...handlers} />);
     expect(html).toContain("Final checked preparation label");
-    expect(html).toContain("OncoFlow - โรงพยาบาลทดสอบ");
+    expect(html).not.toContain("OncoFlow - โรงพยาบาลทดสอบ");
     expect(html).toContain("ผู้ป่วยทดสอบ");
     expect(html).toContain("ยาเคมีบำบัดทดสอบ");
-    expect(html).toContain("ยาเคมีบำบัดทดสอบ 100.5 mg in สารละลายทดสอบ 100 mL");
-    expect(html).toContain("Withdrawal: 20 mL");
-    expect(html).toContain("IV in 60 min");
-    expect(html).toContain("ข้อความเก็บรักษาเดิม");
+    expect(html).toMatch(/ยา: ยาเคมีบำบัดทดสอบ 100.5 mg<\/p><p [^>]*data-label-row="diluent"[^>]*>in สารละลายทดสอบ 100 mL/);
+    expect(html).toContain("ดูดยา: 20 mL");
+    expect(html).toContain("วิธีให้ยา: IV in 60 min");
+    expect(html).toContain("การเก็บยา: ข้อความเก็บรักษาเดิม");
     expect(html).not.toContain("ข้อความเก็บรักษาเดิม | ป้องกันแสง");
-    expect(html).toContain("คำเตือนทดสอบ");
-    expect(html).toContain("| HN SYN-HN");
+    expect(html).toContain("คำเตือน: คำเตือนทดสอบ");
+    expect(html).toMatch(/HN SYN-HN \| หอผู้ป่วย หอทดสอบ<\/header><p [^>]*data-label-row="patient"[^>]*><strong>ผู้ป่วยทดสอบ<\/strong><\/p>/);
     expect(html).toContain("(1/1)");
     expect(html).toContain("Preparation summary");
     expect(html).toContain("คำแนะนำสังเคราะห์");
-    expect(html).toContain("Prepared by เภสัชกรหนึ่ง | 23/08/2569 16:15");
+    expect(html).toContain("เตรียมเมื่อ 23/08/2569 16:15");
+    expect(html).not.toContain("เภสัชกรหนึ่ง");
+    expect(html).not.toContain("Prepared by");
     expect(html).toContain("หมดอายุ 23/08/2569 17:21");
     expect(html).toContain("oncoflow-preparation-label-v1");
     expect(html).toContain("Print label");
@@ -111,7 +124,8 @@ describe("PreparationOutput", () => {
     const html = renderToStaticMarkup(<PreparationOutputView output={multi} dimensions={LABEL_DIMENSIONS[0]} busy={false} error={null} {...handlers} />);
     expect(html).toContain("1/2");
     expect(html).toContain("2/2");
-    expect(html.match(/ยาเคมีบำบัดทดสอบ 100.5 mg in สารละลายทดสอบ 100 mL/g)).toHaveLength(2);
+    expect(html.match(/ยา: ยาเคมีบำบัดทดสอบ 100.5 mg/g)).toHaveLength(2);
+    expect(html.match(/in สารละลายทดสอบ 100 mL/g)).toHaveLength(2);
     expect(html.match(/23\/08\/2569 17:21/g)).toHaveLength(2);
     expect(html).toContain("Print 2 labels");
     expect(html.match(/preparation-label-print-root/g)).toHaveLength(2);
@@ -159,21 +173,22 @@ describe("PreparationOutput", () => {
     expect(html).not.toContain("undefined");
   });
 
-  it("omits the in prefix when rate is missing or zero", () => {
-    const zeroRate = { ...output, label: { ...output.label, infusionRateOrDuration: "0 min" } };
+  it.each([null, "", "  ", "0", "0 min", "0.0 min", "0,0 mL/hr"])("shows protocol for missing or zero rate %s", (rate) => {
+    const zeroRate = { ...output, label: { ...output.label, infusionRateOrDuration: rate } };
     const html = renderToStaticMarkup(<PreparationOutputView output={zeroRate} dimensions={LABEL_DIMENSIONS[0]} busy={false} error={null} {...handlers} />);
-    expect(html).toContain("preparation-label__route-rate\">IV<");
+    expect(html).toContain("preparation-label__route-rate\">วิธีให้ยา: IV ตามโปรโตคอล<");
     expect(html).not.toContain("in 0 min");
   });
 
   it("labels subsequent local print requests as reprints and separates dimensions", () => {
     const reprint = { ...output, printRequestCount: 2 };
-    const html = renderToStaticMarkup(<PreparationOutputView output={reprint} dimensions={LABEL_DIMENSIONS[2]} busy={false} error={null} {...handlers} />);
+    const html = renderToStaticMarkup(<PreparationOutputView output={reprint} dimensions={LABEL_DIMENSIONS.find((size) => size.id === "large")!} busy={false} error={null} {...handlers} />);
     expect(html).toContain("Reprint label");
     expect(html).toContain("Compact · 100 × 70 mm");
     expect(html).toContain("Narrow · 100 × 50 mm");
     expect(html).toContain("Large · 148 × 105 mm");
     expect(html).toContain("--preparation-label-width:148mm");
+    expect(html).toContain("80 × 70 mm");
     expect(html).toContain("--preparation-label-font-header:22px");
     expect(html).toContain("--preparation-label-font-patient:20px");
     expect(html).toContain("--preparation-label-font-withdrawal:16px");

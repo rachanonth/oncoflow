@@ -7,6 +7,7 @@ import { displayDateTime, getBangkokQuickDateRange } from "../order/OrderList";
 import { currentBangkokDateTimeValue } from "../shared/dateTime";
 import type { PreparationQueueItem, PreparationQueueSourceFilter } from "../types/preparation";
 import { WorkingFormulaDialog } from "./WorkingFormula";
+import { WardDeliveryDialog } from "../report/WardDeliveryReport";
 
 export function PreparationQueue({ onOpen }: { onOpen: (orderId: number, preparationDate: string) => void }) {
   const [search, setSearch] = useState("");
@@ -14,6 +15,7 @@ export function PreparationQueue({ onOpen }: { onOpen: (orderId: number, prepara
   const [sourceFilter, setSourceFilter] = useState<PreparationQueueSourceFilter>("all");
   const [selected, setSelected] = useState<number | null>(null);
   const [formulaOpen, setFormulaOpen] = useState(false);
+  const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [state, setState] = useState<{ loading: boolean; items: PreparationQueueItem[]; total: number; error: string | null }>({ loading: true, items: [], total: 0, error: null });
   const request = useMemo(() => ({ search, preparationDate, sourceFilter, limit: 200 }), [search, preparationDate, sourceFilter]);
@@ -55,12 +57,12 @@ export function PreparationQueue({ onOpen }: { onOpen: (orderId: number, prepara
       : null;
 
   return <section className="workspace preparation-workspace" aria-labelledby="preparation-queue-heading">
-    <div className="page-heading"><div><p className="eyebrow">Pharmacist workspace</p><h1 id="preparation-queue-heading">Preparation queue</h1><PageDescription pageKey="preparation" /></div><div className="working-formula-action"><span>Uses the current preparation view</span><button className="button button--primary" type="button" disabled={state.loading || state.items.length === 0} onClick={() => setFormulaOpen(true)}>Working formula ({state.items.length})</button></div></div>
+    <div className="page-heading"><div><p className="eyebrow">Pharmacist workspace</p><h1 id="preparation-queue-heading">Preparation queue</h1><PageDescription pageKey="preparation" /></div><div className="working-formula-action"><button className="button button--secondary" type="button" disabled={!preparationDate} onClick={() => setDeliveryOpen(true)}>พิมพ์ใบส่งยา</button><span>Uses the current preparation view</span><button className="button button--primary" type="button" disabled={state.loading || state.items.length === 0} onClick={() => setFormulaOpen(true)}>Working formula ({state.items.length})</button></div></div>
     <div className="surface list-card">
       <div className="list-toolbar preparation-queue-toolbar"><label className="search-box"><span aria-hidden="true">⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search order, HN, patient, ward, or regimen" aria-label="Search preparation queue" /></label><label className="compact-filter">Preparation date<BuddhistDateInput value={preparationDate} onChange={setPreparationDate} /></label><div className="order-quick-filter" role="group" aria-label="Quick preparation date"><button className={quickDate === "today" ? "is-active" : ""} type="button" aria-pressed={quickDate === "today"} onClick={() => applyQuickDate("today")}>Today</button><button className={quickDate === "yesterday" ? "is-active" : ""} type="button" aria-pressed={quickDate === "yesterday"} onClick={() => applyQuickDate("yesterday")}>Yesterday</button></div><div className="order-quick-filter preparation-source-filter" role="group" aria-label="Preparation source"><button className={sourceFilter === "all" ? "is-active" : ""} type="button" aria-pressed={sourceFilter === "all"} onClick={() => setSourceFilter("all")}>All</button><button className={sourceFilter === "same_day" ? "is-active" : ""} type="button" aria-pressed={sourceFilter === "same_day"} onClick={() => setSourceFilter("same_day")}>Today order</button><button className={sourceFilter === "continuing" ? "is-active" : ""} type="button" aria-pressed={sourceFilter === "continuing"} onClick={() => setSourceFilter("continuing")}>Continuing</button></div></div>
       {state.error ? <div className="state-panel state-panel--error" role="alert"><span className="state-icon">!</span><h2>Preparation queue unavailable</h2><p>{state.error}</p></div> : state.loading ? <div className="list-skeleton" aria-label="Loading preparation queue">{[1, 2, 3].map((value) => <div className="skeleton-row" key={value}><span/><span/><span/><span/></div>)}</div> : state.items.length === 0 ? <div className="state-panel"><span className="state-icon">⌁</span><h2>No eligible orders in the queue</h2><p>Create or edit a local order with a drug enabled for chemotherapy preparation. Historical orders are not converted automatically.</p></div> : <PreparationQueueTable items={state.items} selected={selected} onSelect={setSelected} onOpen={onOpen} onKey={key} />}
       <div className="list-footer"><span>{state.total} eligible order{state.total === 1 ? "" : "s"}</span><span>Local SQLite · no inventory deduction</span></div>
-    </div>{formulaOpen && <WorkingFormulaDialog date={preparationDate} items={state.items} onClose={() => { setFormulaOpen(false); setRefreshVersion((value) => value + 1); }} />}
+    </div>{deliveryOpen && <WardDeliveryDialog date={preparationDate} onClose={() => setDeliveryOpen(false)} />}{formulaOpen && <WorkingFormulaDialog date={preparationDate} items={state.items} onClose={() => { setFormulaOpen(false); setRefreshVersion((value) => value + 1); }} />}
   </section>;
 }
 

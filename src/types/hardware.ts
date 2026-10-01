@@ -14,6 +14,10 @@ export interface LabelFontSizes {
   expiration: number;
 }
 
+export type LabelRowKey = "header" | "patient" | "withdrawal" | "drug" | "diluent" | "routeRate" | "storage" | "warning" | "preparedBy" | "expiration";
+export interface LabelRowStyle { bold: boolean; underline: boolean; }
+export type LabelRowStyles = Record<LabelRowKey, LabelRowStyle>;
+
 export interface LabelPrinterConfig {
   spoolerName: string;
   language: PrinterLanguage;
@@ -23,6 +27,8 @@ export interface LabelPrinterConfig {
   gapMm: number;
   preprintHeaderSpacingMm: number;
   fontSizes: LabelFontSizes;
+  fontName?: string | null;
+  rowStyles?: LabelRowStyles;
 }
 
 export interface PrintJobReceipt {

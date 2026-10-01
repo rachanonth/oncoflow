@@ -51,6 +51,8 @@ All label actions use the existing local Windows RAW spooler and do not re-check
 
 The working formula output is selected by treatment date (Bangkok local date by default), uses existing preparation values/calculation results only, and opens the local system print dialog. It does not introduce a second calculation path.
 
+Working formula printouts use compact headings, table padding, and spacing between groups to fit more entries per page. Both Order and Drug arrangements omit the preparer's name from the document; assignment and batch-check requirements remain unchanged. Clinical values and instructions are retained in full, with wrapping rather than truncation.
+
 When the working formula is reopened, initialization refreshes an existing `pending` preparation task if its source order item changed. The refresh keeps the task identity, replaces its source snapshot, clears preparation volume/notes that may refer to the previous order values, and appends a minimal `preparation_source_refreshed` audit event. Prepared or checked tasks are never refreshed automatically and retain the stale-source guard. Batch checking stores the confirmed default final-volume calculation when no manual final volume was entered.
 
 ## Known limitations

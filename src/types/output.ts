@@ -10,6 +10,7 @@ export interface PreparationLabelData {
   patientIdentifier: string;
   patientName: string | null;
   hospitalName: string | null;
+  wardName: string | null;
   regimenName: string | null;
   treatmentAt: string | null;
   treatmentDay: string | null;

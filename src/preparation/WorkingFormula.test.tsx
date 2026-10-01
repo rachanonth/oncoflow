@@ -46,12 +46,12 @@ describe("WorkingFormula", () => {
     expect(html).toContain("Order OF-SYN-7");
     expect(html).toContain("Ward: หอผู้ป่วยสังเคราะห์");
     expect(html).toContain("Order time:");
-    expect(html).toContain("Prepared by: เภสัชกรผู้เตรียม");
+    expect(html).not.toContain("Prepared by:");
     expect(html).not.toContain("Preparation pharmacist:");
     expect(html).toContain("ยาเคมีบำบัดสังเคราะห์");
     expect(html).toContain("Withdrawal: 20 mL");
     expect(html).toContain("Containers: 2");
-    expect(html).toContain("เภสัชกรผู้เตรียม");
+    expect(html).not.toContain("เภสัชกรผู้เตรียม");
     expect(html).toContain("Continuing order");
     expect(html).not.toContain("<th>Check</th>");
   });
@@ -111,6 +111,8 @@ describe("WorkingFormula", () => {
     const html = renderToStaticMarkup(<WorkingFormulaDrugGroups workspaces={[zuluWorkspace, secondAlphaWorkspace, alphaWorkspace]} queueItems={[]} />);
     expect(html.indexOf("Alpha medicine")).toBeLessThan(html.indexOf("Zulu medicine"));
     expect(html).toContain("2 preparation task(s)");
+    expect(html).not.toContain("Prepared by:");
+    expect(html).not.toContain("เภสัชกรผู้เตรียม");
     expect(html).toContain("HN SYN-TH-7 - ผู้ป่วยสังเคราะห์");
   });
 });

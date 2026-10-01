@@ -121,7 +121,7 @@ pub(super) fn load_order_items(
              JOIN drugs d ON d.id=i.drug_id
              LEFT JOIN units u ON u.id=d.unit_id
              LEFT JOIN diluents dl ON dl.id=i.diluent_id
-             WHERE i.order_id=?1
+             WHERE i.order_id=?1 AND i.cancellation_id IS NULL
              ORDER BY CASE WHEN i.ordering_no IS NULL THEN 1 ELSE 0 END,i.ordering_no,i.id",
         )?
         .query_map([order_id], |row| {
@@ -219,7 +219,7 @@ pub(super) fn compatible_cumulative_total(
          JOIN routes rt ON rt.id=i.route_id
          JOIN diagnoses diagnosis ON diagnosis.id=p.diagnosis_id
          JOIN regimens regimen ON regimen.id=p.regimen_id
-         WHERE o.patient_id=?1 AND i.drug_id=?2",
+         WHERE o.cancellation_id IS NULL AND i.cancellation_id IS NULL AND o.patient_id=?1 AND i.drug_id=?2",
         [patient_id, drug_id],
         |row| row.get(0),
     )
@@ -235,7 +235,7 @@ pub(super) fn cumulative_drug_candidates(
              FROM orders o
              JOIN order_items i ON i.order_id=o.id
              JOIN drugs d ON d.id=i.drug_id
-             WHERE o.patient_id=?1 AND COALESCE(d.cumulative_alert,0)<>0
+             WHERE o.cancellation_id IS NULL AND i.cancellation_id IS NULL AND o.patient_id=?1 AND COALESCE(d.cumulative_alert,0)<>0
              ORDER BY d.drug_name COLLATE NOCASE,d.id",
         )?
         .query_map([patient_id], |row| {
@@ -260,7 +260,7 @@ pub(super) fn cumulative_dose_exposures(
              JOIN orders o ON o.id=i.order_id
              JOIN drugs d ON d.id=i.drug_id
              LEFT JOIN units u ON u.id=d.unit_id
-             WHERE o.patient_id=?1 AND i.drug_id=?2
+             WHERE o.cancellation_id IS NULL AND i.cancellation_id IS NULL AND o.patient_id=?1 AND i.drug_id=?2
              ORDER BY o.id,i.id",
         )?
         .query_map([patient_id, drug_id], |row| {

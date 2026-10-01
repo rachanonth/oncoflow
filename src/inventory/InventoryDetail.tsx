@@ -1,3 +1,4 @@
+import { editFormKeyboard } from "../components/editFormKeyboard";
 import { useEffect, useState } from "react";
 
 import {
@@ -92,7 +93,7 @@ export function InventoryMovementForm({ onSubmit }: { onSubmit: (draft: Inventor
     catch (error) { const detail = commandError(error); setFailure(detail.message ?? "Inventory movement could not be recorded."); if (detail.field) setErrors((current) => ({ ...current, [detail.field as keyof InventoryFormErrors]: detail.message })); }
     finally { setBusy(false); }
   }
-  return <section className="surface inventory-entry"><div className="section-heading"><div><p className="eyebrow">Authenticated movement</p><h2>Record stock change</h2></div></div><form onSubmit={(event) => void submit(event)}>
+  return <section className="surface inventory-entry"><div className="section-heading"><div><p className="eyebrow">Authenticated movement</p><h2>Record stock change</h2></div></div><form onKeyDownCapture={editFormKeyboard} onSubmit={(event) => void submit(event)}>
     <label>Movement<select value={draft.operation} onChange={(event) => update("operation", event.target.value as InventoryMovementDraft["operation"])}><option value="receipt">Receipt</option><option value="adjustment">Adjustment</option><option value="manualIssue">Manual issue</option></select></label>
     {draft.operation === "adjustment" && <label>Direction<select value={draft.direction} onChange={(event) => update("direction", event.target.value as InventoryMovementDraft["direction"])}><option value="increase">Increase</option><option value="decrease">Decrease</option></select></label>}
     <label>Quantity {draft.operation === "manualIssue" && <small>Whole units only</small>}<input type="number" min={draft.operation === "manualIssue" ? "1" : "0"} step={draft.operation === "manualIssue" ? "1" : "any"} value={draft.quantity} onChange={(event) => update("quantity", event.target.value)} placeholder="0"/>{errors.quantity && <span className="field-error">{errors.quantity}</span>}</label>

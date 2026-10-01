@@ -4,9 +4,9 @@ use ab_glyph::{point, Font, FontArc, PxScale, ScaleFont};
 
 use crate::output::{expiration_at, PreparationContainerLabelData, PreparationOutput};
 
-use super::{HardwareError, LabelPrinterConfig, PrinterLanguage};
+use super::{HardwareError, LabelPrinterConfig, LabelRowStyle, PrinterLanguage};
 
-pub(crate) const LABEL_RENDERER_VERSION: &str = "oncoflow-raw-label-raster-v8-zpl";
+pub(crate) const LABEL_RENDERER_VERSION: &str = "oncoflow-raw-label-raster-v12";
 const MAX_PIXELS: usize = 25_000_000;
 
 pub(crate) fn render_preparation_label(
@@ -14,7 +14,7 @@ pub(crate) fn render_preparation_label(
     config: &LabelPrinterConfig,
 ) -> Result<Vec<u8>, HardwareError> {
     let dimensions = validate_dimensions(config)?;
-    let font = load_thai_capable_font()?;
+    let font = load_label_font(config)?;
     let mut payload = Vec::new();
     for container in &output.containers {
         let bitmap =
@@ -36,7 +36,7 @@ pub(crate) fn render_preparation_labels(
         return Err(HardwareError::InvalidConfig("preparationIds"));
     }
     let dimensions = validate_dimensions(config)?;
-    let font = load_thai_capable_font()?;
+    let font = load_label_font(config)?;
     let mut payload = Vec::new();
     for output in outputs {
         for container in &output.containers {
@@ -52,9 +52,9 @@ pub(crate) fn render_preparation_labels(
     Ok(payload)
 }
 
-pub(super) fn render_test_label(config: &LabelPrinterConfig) -> Result<Vec<u8>, HardwareError> {
+pub(crate) fn render_test_label(config: &LabelPrinterConfig) -> Result<Vec<u8>, HardwareError> {
     let dimensions = validate_dimensions(config)?;
-    let font = load_thai_capable_font()?;
+    let font = load_label_font(config)?;
     let mut bitmap = MonochromeBitmap::new(dimensions.0, dimensions.1);
     draw_text(&mut bitmap, &font, "OncoFlow printer test", 12, 16, 26.0, 2);
     draw_text(&mut bitmap, &font, "ทดสอบเครื่องพิมพ์ฉลาก", 12, 58, 22.0, 2);
@@ -80,7 +80,7 @@ fn validate_dimensions(config: &LabelPrinterConfig) -> Result<(u32, u32), Hardwa
         return Err(HardwareError::InvalidConfig("gapMm"));
     }
     if !config.preprint_header_spacing_mm.is_finite()
-        || !(0.0..=50.0).contains(&config.preprint_header_spacing_mm)
+        || config.preprint_header_spacing_mm < 0.0
         || config.preprint_header_spacing_mm > config.height_mm - 5.0
     {
         return Err(HardwareError::InvalidConfig("preprintHeaderSpacingMm"));
@@ -101,7 +101,7 @@ fn validate_dimensions(config: &LabelPrinterConfig) -> Result<(u32, u32), Hardwa
     ];
     if font_sizes
         .into_iter()
-        .any(|value| !value.is_finite() || !(10.0..=40.0).contains(&value))
+        .any(|value| !value.is_finite() || value < 10.0)
     {
         return Err(HardwareError::InvalidConfig("fontSizes"));
     }
@@ -114,6 +114,13 @@ fn validate_dimensions(config: &LabelPrinterConfig) -> Result<(u32, u32), Hardwa
         return Err(HardwareError::InvalidConfig("dimensions"));
     }
     Ok((width, height))
+}
+
+fn load_label_font(config: &LabelPrinterConfig) -> Result<FontArc, HardwareError> {
+    match config.font_name.as_deref().filter(|name| !name.is_empty()) {
+        Some(name) => super::fonts::load_selected_font(name),
+        None => load_thai_capable_font(),
+    }
 }
 
 fn load_thai_capable_font() -> Result<FontArc, HardwareError> {
@@ -158,20 +165,15 @@ fn render_label_bitmap(
     let mut bitmap = MonochromeBitmap::new(width, height);
     let margin = (width / 35).max(8);
     let available = width.saturating_sub(margin * 2);
-    let base_scale = (width as f32 / 640.0).clamp(0.72, 1.7);
+    let base_scale = config.dpi as f32 / 96.0;
     let top = ((config.preprint_header_spacing_mm / 25.4) * config.dpi as f32).round() as u32;
 
-    let header = label
-        .hospital_name
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
-        .map(|hospital| format!("OncoFlow - {hospital}"))
-        .unwrap_or_else(|| "OncoFlow".into());
-    let patient = format!(
-        "{}  |  HN {}",
-        display_value(label.patient_name.as_deref()),
-        label.patient_identifier
+    let header = format!(
+        "HN {} | หอผู้ป่วย {}",
+        label.patient_identifier,
+        display_value(label.ward_name.as_deref())
     );
+    let patient = display_value(label.patient_name.as_deref()).to_owned();
     let dose = [
         Some(label.drug_name.as_str()),
         label.ordered_dose_text.as_deref(),
@@ -190,31 +192,29 @@ fn render_label_bitmap(
         diluent_volume.as_deref(),
         " ",
     );
-    let drug = if diluent == "—" {
-        dose
-    } else {
-        format!("{dose} in {diluent}")
-    };
+    let drug = format!("ยา: {dose}");
+    let diluent = format!("in {diluent}");
     let withdrawal = label
         .withdrawal_volume_ml
         .as_deref()
         .filter(|value| !value.trim().is_empty())
-        .map(|value| format!("Withdrawal: {value} mL"))
-        .unwrap_or_else(|| "Withdrawal: —".into());
+        .map(|value| format!("ดูดยา: {value} mL"))
+        .unwrap_or_else(|| "ดูดยา: —".into());
     let rate = prefixed_rate(label.infusion_rate_or_duration.as_deref());
-    let route_rate = join_display(label.route_name.as_deref(), rate.as_deref(), "  ");
-    let storage = display_value(output.summary.storage_reference.as_deref()).to_owned();
+    let route_rate = format!(
+        "วิธีให้ยา: {}",
+        join_display(label.route_name.as_deref(), rate.as_deref(), "  ")
+    );
+    let storage = format!(
+        "การเก็บยา: {}",
+        display_value(output.summary.storage_reference.as_deref())
+    );
     let prepared_at = label
         .prepared_at
         .as_deref()
         .and_then(|value| expiration_at(value, Some("7 hr")))
         .map(|value| format_label_datetime(&value));
-    let prepared_name = label
-        .prepared_by
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
-        .map(|value| format!("Prepared by {value}"));
-    let prepared = join_display(prepared_name.as_deref(), prepared_at.as_deref(), "  |  ");
+    let prepared = format!("เตรียมเมื่อ {}", display_value(prepared_at.as_deref()));
     let expiration = format!(
         "หมดอายุ {}",
         label
@@ -229,20 +229,26 @@ fn render_label_bitmap(
         output.containers.len()
     );
     let expiration_fit = format!("{expiration}  {label_number}");
-    let rows = vec![
+    let mut rows = vec![
         (patient, config.font_sizes.patient, 1),
         (withdrawal, config.font_sizes.withdrawal, 1),
         (drug, config.font_sizes.drug, 2),
+        (diluent, config.font_sizes.drug, 2),
         (route_rate, config.font_sizes.route_rate, 1),
         (storage, config.font_sizes.storage, 2),
         (
-            display_value(label.warning_text.as_deref()).into(),
+            format!("คำเตือน: {}", display_value(label.warning_text.as_deref())),
             config.font_sizes.warning,
             2,
         ),
         (prepared, config.font_sizes.prepared_by, 1),
         (expiration_fit, config.font_sizes.expiration, 1),
     ];
+    // Preserve complete text as fonts grow; only the expiration/counter row stays single-line.
+    let last_row = rows.len() - 1;
+    for (_, _, max_lines) in &mut rows[..last_row] {
+        *max_lines = usize::MAX;
+    }
     let fit = fitted_typography_scale(
         font,
         &header,
@@ -256,28 +262,61 @@ fn render_label_bitmap(
     )?;
     let scale = base_scale * fit;
     let px = |value: f32| value * scale;
+    let content_bottom = label_content_bottom(
+        font,
+        &header,
+        config.font_sizes.header,
+        &rows,
+        top,
+        available,
+        scale,
+    );
+    let extra_gap =
+        height.saturating_sub(margin).saturating_sub(content_bottom) / rows.len() as u32;
     let mut y = draw_centered_wrapped(
         &mut bitmap,
         font,
         &header,
-        TextLayout::new(margin, top, px(config.font_sizes.header), available, 1),
+        TextLayout::new(
+            margin,
+            top,
+            px(config.font_sizes.header),
+            available,
+            usize::MAX,
+        )
+        .styled(config.row_styles.header),
     );
-    y += px(6.0).ceil() as u32;
+    y += extra_gap;
     let expiration_row = rows.len().saturating_sub(1);
-    for (text, size, max_lines) in rows.into_iter().take(expiration_row) {
+    let styles = &config.row_styles;
+    let row_styles = [
+        styles.patient,
+        styles.withdrawal,
+        styles.drug,
+        styles.diluent,
+        styles.route_rate,
+        styles.storage,
+        styles.warning,
+        styles.prepared_by,
+    ];
+    for ((text, size, max_lines), row_style) in
+        rows.into_iter().take(expiration_row).zip(row_styles)
+    {
         y = draw_wrapped(
             &mut bitmap,
             font,
             &text,
-            TextLayout::new(margin, y, px(size), available, max_lines),
+            TextLayout::new(margin, y, px(size), available, max_lines).styled(row_style),
         );
+        y += extra_gap;
     }
     draw_expiration_row(
         &mut bitmap,
         font,
         &expiration,
         &label_number,
-        TextLayout::new(margin, y, px(config.font_sizes.expiration), available, 1),
+        TextLayout::new(margin, y, px(config.font_sizes.expiration), available, 1)
+            .styled(config.row_styles.expiration),
     );
     Ok(bitmap)
 }
@@ -304,16 +343,17 @@ fn fitted_typography_scale(
             available_width,
             base_scale * fit,
         ) <= height.saturating_sub(bottom_margin)
+            && rows.iter().all(|(text, size, max_lines)| {
+                *max_lines != 1
+                    || text_width(font, text, size * base_scale * fit) <= available_width as f32
+            })
     };
-    if fits(1.0) {
-        return Ok(1.0);
-    }
     const MINIMUM_FIT: f32 = 0.35;
     if !fits(MINIMUM_FIT) {
         return Err(HardwareError::InvalidConfig("labelContentDoesNotFit"));
     }
     let mut lower = MINIMUM_FIT;
-    let mut upper = 1.0;
+    let mut upper = 4.0;
     for _ in 0..12 {
         let candidate = (lower + upper) / 2.0;
         if fits(candidate) {
@@ -334,10 +374,21 @@ fn label_content_bottom(
     available_width: u32,
     scale: f32,
 ) -> u32 {
-    let mut y = top + wrapped_height(font, header, header_size * scale, available_width, 1);
-    y += (6.0 * scale).ceil() as u32;
+    let mut y = top.saturating_add(wrapped_height(
+        font,
+        header,
+        header_size * scale,
+        available_width,
+        usize::MAX,
+    ));
     for (text, size, max_lines) in rows {
-        y += wrapped_height(font, text, *size * scale, available_width, *max_lines);
+        y = y.saturating_add(wrapped_height(
+            font,
+            text,
+            *size * scale,
+            available_width,
+            *max_lines,
+        ));
     }
     y
 }
@@ -350,7 +401,7 @@ fn wrapped_height(
     max_lines: usize,
 ) -> u32 {
     let line_count = wrap_text(font, text, size, available_width as f32, max_lines).len() as u32;
-    line_count * (size * 1.35).ceil() as u32
+    line_count.saturating_mul((size * 1.35).ceil() as u32)
 }
 
 fn draw_wrapped(
@@ -368,13 +419,14 @@ fn draw_wrapped(
     );
     let line_height = (layout.size * 1.35).ceil() as u32;
     for (index, line) in lines.iter().enumerate() {
-        draw_text_line(
+        draw_styled_text_line(
             bitmap,
             font,
             line,
             layout.x,
             layout.y + index as u32 * line_height,
             layout.size,
+            layout.style,
         );
     }
     layout.y + lines.len() as u32 * line_height
@@ -397,13 +449,14 @@ fn draw_centered_wrapped(
     for (index, line) in lines.iter().enumerate() {
         let width = text_width(font, line, layout.size).ceil() as u32;
         let x = layout.x + layout.max_width.saturating_sub(width) / 2;
-        draw_text_line(
+        draw_styled_text_line(
             bitmap,
             font,
             line,
             x,
             layout.y + index as u32 * line_height,
             layout.size,
+            layout.style,
         );
     }
     layout.y + lines.len() as u32 * line_height
@@ -431,10 +484,19 @@ fn draw_expiration_row(
             layout.size,
             expiration_width,
             layout.max_lines,
-        ),
+        )
+        .styled(layout.style),
     );
     let number_x = layout.x + layout.max_width.saturating_sub(number_width);
-    draw_text_line(bitmap, font, label_number, number_x, layout.y, layout.size);
+    draw_styled_text_line(
+        bitmap,
+        font,
+        label_number,
+        number_x,
+        layout.y,
+        layout.size,
+        layout.style,
+    );
 }
 
 fn draw_text(
@@ -462,6 +524,7 @@ struct TextLayout {
     size: f32,
     max_width: u32,
     max_lines: usize,
+    style: LabelRowStyle,
 }
 
 impl TextLayout {
@@ -472,7 +535,15 @@ impl TextLayout {
             size,
             max_width,
             max_lines,
+            style: LabelRowStyle {
+                bold: false,
+                underline: false,
+            },
         }
+    }
+    const fn styled(mut self, style: LabelRowStyle) -> Self {
+        self.style = style;
+        self
     }
 }
 
@@ -507,6 +578,33 @@ fn wrap_text(
         lines.push(current.trim_end().to_owned());
     }
     lines
+}
+
+fn draw_styled_text_line(
+    bitmap: &mut MonochromeBitmap,
+    font: &FontArc,
+    text: &str,
+    x: u32,
+    y: u32,
+    size: f32,
+    style: LabelRowStyle,
+) {
+    draw_text_line(bitmap, font, text, x, y, size);
+    let thickness = (size / 30.0).round().max(1.0) as u32;
+    if style.bold {
+        for offset in 1..=thickness {
+            draw_text_line(bitmap, font, text, x + offset, y, size);
+        }
+    }
+    if style.underline {
+        let width = text_width(font, text, size).ceil() as u32;
+        let underline_y = y + (size * 1.20).ceil() as u32;
+        for dy in 0..thickness {
+            for dx in 0..width {
+                bitmap.set((x + dx) as i32, (underline_y + dy) as i32);
+            }
+        }
+    }
 }
 
 fn draw_text_line(
@@ -572,16 +670,18 @@ fn encode_zpl(bitmap: &MonochromeBitmap) -> Vec<u8> {
     const MAX_GF_BYTES: usize = 99_999;
     let row_bytes = bitmap.width_bytes() as usize;
     let rows_per_chunk = (MAX_GF_BYTES / row_bytes).max(1);
-    let mut output = format!(
-        "^XA\r\n^PW{}\r\n^LL{}\r\n",
-        bitmap.width, bitmap.height
-    )
-    .into_bytes();
+    let mut output = format!("^XA\r\n^PW{}\r\n^LL{}\r\n", bitmap.width, bitmap.height).into_bytes();
 
     for (chunk_index, chunk) in bitmap.data.chunks(row_bytes * rows_per_chunk).enumerate() {
         let y = chunk_index * rows_per_chunk;
         output.extend_from_slice(
-            format!("^FO0,{y}^GFB,{},{},{},", chunk.len(), chunk.len(), row_bytes).as_bytes(),
+            format!(
+                "^FO0,{y}^GFB,{},{},{},",
+                chunk.len(),
+                chunk.len(),
+                row_bytes
+            )
+            .as_bytes(),
         );
         output.extend_from_slice(chunk);
         output.extend_from_slice(b"^FS\r\n");
@@ -624,9 +724,9 @@ fn join_display(first: Option<&str>, second: Option<&str>, separator: &str) -> S
 }
 
 fn prefixed_rate(value: Option<&str>) -> Option<String> {
-    let value = value?.trim();
+    let value = value.unwrap_or_default().trim();
     if value.is_empty() || rate_starts_with_zero(value) {
-        return None;
+        return Some("ตามโปรโตคอล".into());
     }
     Some(format!("in {value}"))
 }
@@ -731,6 +831,7 @@ mod tests {
                 patient_identifier: "SYN-HN".into(),
                 patient_name: Some("ผู้ป่วยทดสอบ".into()),
                 hospital_name: Some("โรงพยาบาลทดสอบ".into()),
+                ward_name: Some("หอทดสอบ".into()),
                 regimen_name: Some("สูตรทดสอบ".into()),
                 treatment_at: Some("2026-08-23T09:00:00".into()),
                 treatment_day: Some("Day 1".into()),
@@ -757,7 +858,7 @@ mod tests {
                 preparation_instructions: None,
                 preparation_notes: None,
                 storage_reference: None,
-                safety_review_status: "verified_workflow_complete",
+                safety_review_status: "verified_workflow_complete".into(),
                 inventory_posting_status: Some("posted".into()),
                 inventory_movement_id: Some(1),
                 containers_required: Some(2),
@@ -766,7 +867,7 @@ mod tests {
                 inventory_stock_state: Some("shortage".into()),
                 calculation_ruleset_version: Some("legacy-cytotoxic-v8".into()),
                 calculation_rule_id: Some("synthetic".into()),
-                presentation_notice: "Persisted values only.",
+                presentation_notice: "Persisted values only.".into(),
             },
             print_request_count: 0,
         }
@@ -782,7 +883,76 @@ mod tests {
             gap_mm: 3.0,
             preprint_header_spacing_mm: 5.0,
             font_sizes: Default::default(),
+            font_name: None,
+            row_styles: Default::default(),
         }
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn selected_local_font_is_used_and_missing_font_never_silently_falls_back() {
+        let names = super::super::fonts::list_system_label_fonts().unwrap();
+        let mut selected = config(PrinterLanguage::Tspl);
+        selected.font_name = Some(names[0].clone());
+        let font = load_label_font(&selected).unwrap();
+        let direct = super::super::fonts::load_selected_font(&names[0]).unwrap();
+        assert_eq!(font.font_data(), direct.font_data());
+        assert!(render_preparation_label(&output(), &selected).is_ok());
+        selected.font_name = Some("OncoFlow nonexistent font".into());
+        assert!(matches!(
+            render_test_label(&selected),
+            Err(HardwareError::FontUnavailable)
+        ));
+        assert!(matches!(
+            render_preparation_label(&output(), &selected),
+            Err(HardwareError::FontUnavailable)
+        ));
+    }
+
+    #[test]
+    fn fills_eighty_by_seventy_label_and_preserves_header_space_at_each_dpi() {
+        let font = load_thai_capable_font().unwrap();
+        let output = output();
+        for dpi in [203, 300, 600] {
+            let mut config = config(PrinterLanguage::Zpl);
+            config.width_mm = 80.0;
+            config.dpi = dpi;
+            let (width, height) = validate_dimensions(&config).unwrap();
+            let bitmap = render_label_bitmap(
+                &output,
+                &output.containers[0],
+                &font,
+                width,
+                height,
+                &config,
+            )
+            .unwrap();
+            let occupied: Vec<usize> = bitmap
+                .data
+                .chunks(bitmap.width_bytes() as usize)
+                .enumerate()
+                .filter(|(_, row)| row.iter().any(|byte| *byte != 0))
+                .map(|(index, _)| index)
+                .collect();
+            let top = (5.0 / 25.4 * dpi as f32).round() as usize;
+            assert!(*occupied.first().unwrap() >= top);
+            assert!(*occupied.last().unwrap() > (height as f32 * 0.85) as usize);
+            assert!(*occupied.last().unwrap() < height as usize - (width / 35) as usize);
+        }
+    }
+
+    #[test]
+    fn fitting_grows_text_but_keeps_expiration_and_counter_inside_width() {
+        let font = load_thai_capable_font().unwrap();
+        let rows = vec![
+            ("Drug 100 mg in 500 mL".into(), 21.0, usize::MAX),
+            ("Expires 23/08/2569 17:00  (1/1)".into(), 18.0, 1),
+        ];
+        let fit =
+            fitted_typography_scale(&font, "Hospital", 22.0, &rows, 40, 18, 600, 560, 1.0).unwrap();
+        assert!(fit > 1.0);
+        assert!(text_width(&font, &rows[1].0, 18.0 * fit) <= 600.0);
+        assert!(label_content_bottom(&font, "Hospital", 22.0, &rows, 40, 600, fit) <= 542);
     }
 
     #[test]
@@ -798,7 +968,9 @@ mod tests {
     fn renders_zpl_bitmap_for_zebra_raw_queue() {
         let bytes = render_preparation_label(&output(), &config(PrinterLanguage::Zpl)).unwrap();
         assert!(bytes.starts_with(b"^XA\r\n^PW"));
-        assert!(bytes.windows(b"^GFB,".len()).any(|window| window == b"^GFB,"));
+        assert!(bytes
+            .windows(b"^GFB,".len())
+            .any(|window| window == b"^GFB,"));
         assert!(bytes.ends_with(b"^XZ\r\n"));
         let printable = String::from_utf8_lossy(&bytes);
         assert!(!printable.contains("SYN-HN"));
@@ -874,6 +1046,75 @@ mod tests {
     }
 
     #[test]
+    fn each_row_can_be_bold_or_underlined_independently() {
+        let mut config = config(PrinterLanguage::Tspl);
+        let plain = render_preparation_label(&output(), &config).unwrap();
+        for key in [
+            "header",
+            "patient",
+            "withdrawal",
+            "drug",
+            "diluent",
+            "routeRate",
+            "storage",
+            "warning",
+            "preparedBy",
+            "expiration",
+        ] {
+            for style in [
+                serde_json::json!({"bold":true}),
+                serde_json::json!({"underline":true}),
+            ] {
+                config.row_styles =
+                    serde_json::from_value(serde_json::json!({(key):style})).unwrap();
+                let styled = render_preparation_label(&output(), &config).unwrap();
+                assert_ne!(plain, styled, "row {key} must affect the raster");
+            }
+        }
+        config.row_styles = Default::default();
+        assert_eq!(plain, render_preparation_label(&output(), &config).unwrap());
+    }
+
+    #[test]
+    fn custom_top_margin_is_not_limited_to_fifty_mm() {
+        let mut custom = config(PrinterLanguage::Tspl);
+        custom.height_mm = 150.0;
+        custom.preprint_header_spacing_mm = 60.2;
+        let (width, height) = validate_dimensions(&custom).unwrap();
+        let font = load_label_font(&custom).unwrap();
+        let output = output();
+        let bitmap = render_label_bitmap(
+            &output,
+            &output.containers[0],
+            &font,
+            width,
+            height,
+            &custom,
+        )
+        .unwrap();
+        let top = (custom.preprint_header_spacing_mm / 25.4 * custom.dpi as f32).round() as usize;
+        assert!(bitmap.data[..top * bitmap.width_bytes() as usize]
+            .iter()
+            .all(|byte| *byte == 0));
+        assert!(bitmap.data.iter().any(|byte| *byte != 0));
+    }
+
+    #[test]
+    fn accepts_font_sizes_above_forty_and_rejects_overflowing_layout_safely() {
+        let mut large = config(PrinterLanguage::Tspl);
+        large.width_mm = 148.0;
+        large.height_mm = 105.0;
+        large.font_sizes.drug = 72.0;
+        assert!(render_preparation_label(&output(), &large).is_ok());
+        large.font_sizes.drug = 1.0e20;
+        assert!(validate_dimensions(&large).is_ok());
+        assert!(matches!(
+            render_preparation_label(&output(), &large),
+            Err(HardwareError::InvalidConfig("labelContentDoesNotFit"))
+        ));
+    }
+
+    #[test]
     fn rejects_unsafe_or_unbounded_device_configuration() {
         let mut invalid = config(PrinterLanguage::Tspl);
         invalid.spooler_name = "bad\0queue".into();
@@ -888,7 +1129,7 @@ mod tests {
             Err(HardwareError::InvalidConfig("dpi"))
         ));
         invalid = config(PrinterLanguage::Tspl);
-        invalid.font_sizes.warning = 41.0;
+        invalid.font_sizes.warning = 9.0;
         assert!(matches!(
             render_preparation_label(&output(), &invalid),
             Err(HardwareError::InvalidConfig("fontSizes"))
@@ -909,12 +1150,18 @@ mod tests {
     }
 
     #[test]
-    fn omits_rate_prefix_for_missing_or_zero_values() {
-        assert_eq!(prefixed_rate(None), None);
-        assert_eq!(prefixed_rate(Some("  ")), None);
-        assert_eq!(prefixed_rate(Some("0")), None);
-        assert_eq!(prefixed_rate(Some("0.0 min")), None);
-        assert_eq!(prefixed_rate(Some("0,0 mL/hr")), None);
+    fn shows_protocol_for_missing_or_zero_values() {
+        assert_eq!(prefixed_rate(None).as_deref(), Some("ตามโปรโตคอล"));
+        assert_eq!(prefixed_rate(Some("  ")).as_deref(), Some("ตามโปรโตคอล"));
+        assert_eq!(prefixed_rate(Some("0")).as_deref(), Some("ตามโปรโตคอล"));
+        assert_eq!(
+            prefixed_rate(Some("0.0 min")).as_deref(),
+            Some("ตามโปรโตคอล")
+        );
+        assert_eq!(
+            prefixed_rate(Some("0,0 mL/hr")).as_deref(),
+            Some("ตามโปรโตคอล")
+        );
         assert_eq!(prefixed_rate(Some("00:30")).as_deref(), Some("in 00:30"));
         assert_eq!(prefixed_rate(Some("60 min")).as_deref(), Some("in 60 min"));
     }

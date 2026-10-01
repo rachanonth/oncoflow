@@ -7,6 +7,7 @@ use crate::safety::CumulativeDoseSummary;
 pub enum OrderWorkflowStatus {
     Active,
     OnHold,
+    Cancelled,
     Legacy,
 }
 
@@ -15,6 +16,7 @@ impl OrderWorkflowStatus {
         match self {
             Self::Active => "active",
             Self::OnHold => "on_hold",
+            Self::Cancelled => "cancelled",
             Self::Legacy => "legacy",
         }
     }
@@ -23,6 +25,7 @@ impl OrderWorkflowStatus {
         match value {
             "active" => Ok(Self::Active),
             "on_hold" => Ok(Self::OnHold),
+            "cancelled" => Ok(Self::Cancelled),
             "legacy" => Ok(Self::Legacy),
             value => Err(rusqlite::Error::FromSqlConversionFailure(
                 0,
@@ -126,6 +129,7 @@ pub struct OrderListResponse {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderDetail {
+    pub cancellations: Vec<super::cancellation::CancellationEvent>,
     pub id: i64,
     pub order_id: String,
     pub patient_id: i64,
@@ -170,6 +174,7 @@ pub struct OrderWeightInput {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderItemDetail {
+    pub cancelled: bool,
     pub id: i64,
     pub drug_id: i64,
     pub drug_name: String,

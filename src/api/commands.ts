@@ -1,4 +1,14 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./transport";
+import type { DiluentUsageReport } from "../types/report";
+
+export function getDiluentUsageReport(preparationDate: string): Promise<DiluentUsageReport> {
+  return invoke<DiluentUsageReport>("get_diluent_usage_report", { request: { preparationDate } });
+}
+import type { WardDeliveryReport } from "../types/report";
+
+export function getWardDeliveryReport(preparationDate: string): Promise<WardDeliveryReport> {
+  return invoke<WardDeliveryReport>("get_ward_delivery_report", { request: { preparationDate } });
+}
 
 import type { HealthStatus } from "../types/health";
 import type {
@@ -244,6 +254,7 @@ export function acknowledgePreparationSafetyFinding(orderId: number, preparation
 export function getPreparationCountReport(request: PreparationCountReportRequest): Promise<PreparationCountReport> { return invoke<PreparationCountReport>("get_preparation_count_report", { request }); }
 export function getInventoryUsageReport(request: InventoryUsageReportRequest): Promise<InventoryUsageReport> { return invoke<InventoryUsageReport>("get_inventory_usage_report", { request }); }
 export function getPreparationOutput(preparationId: number): Promise<PreparationOutput> { return invoke<PreparationOutput>("get_preparation_output", { preparationId }); }
+export function listSystemLabelFonts(): Promise<string[]> { return invoke<string[]>("list_system_label_fonts"); }
 export function listSystemPrinters(): Promise<string[]> { return invoke<string[]>("list_system_printers"); }
 export function printTestLabel(config: LabelPrinterConfig): Promise<PrintJobReceipt> { return invoke<PrintJobReceipt>("print_test_label", { config }); }
 export function printPreparationLabel(preparationId: number, config: LabelPrinterConfig): Promise<PreparationPrintResult> { return invoke<PreparationPrintResult>("print_preparation_label", { preparationId, config }); }
@@ -300,3 +311,8 @@ export function commandError(error: unknown): BackendCommandError {
     message: error instanceof Error ? error.message : String(error),
   };
 }
+
+export function resetUserPassword(userId: number, newPassword: string): Promise<void> { return invoke<void>("reset_user_password", { userId, newPassword }); }
+
+export function getOrderCancellationPreview(orderId: number, itemId: number | null): Promise<import('../types/order').CancellationPreview> { return invoke('get_order_cancellation_preview', { orderId, itemId }); }
+export function cancelOrder(orderId: number, input: import('../types/order').CancelOrderInput): Promise<import('../types/order').OrderDetail> { return invoke('cancel_order', { orderId, input }); }

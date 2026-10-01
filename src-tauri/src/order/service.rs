@@ -41,7 +41,7 @@ pub(crate) enum OrderError {
 }
 
 pub(crate) struct OrderService<'a> {
-    database: &'a Database,
+    pub(super) database: &'a Database,
 }
 
 impl<'a> OrderService<'a> {
@@ -133,6 +133,16 @@ impl<'a> OrderService<'a> {
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         ensure_editable(&transaction, order_id)?;
         validate_header_lookups(&transaction, &input)?;
+        let protected_patient_change: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM orders o WHERE o.id=?1 AND o.patient_id<>?2
+             AND (EXISTS(SELECT 1 FROM preparation_tasks t WHERE t.source_order_id=o.id)
+               OR EXISTS(SELECT 1 FROM order_cancellations c WHERE c.order_id=o.id)))",
+            rusqlite::params![order_id, input.patient_id],
+            |row| row.get(0),
+        )?;
+        if protected_patient_change {
+            return Err(validation("patientId", "This order has preparation/cancellation history. Cancel the incorrect order and create a new order for the correct patient."));
+        }
         if repository::update_order(&transaction, order_id, &input)? == 0 {
             return Err(OrderError::OrderNotFound);
         }

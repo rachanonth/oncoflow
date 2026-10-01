@@ -27,4 +27,13 @@ describe("duration values", () => {
   it("preserves an unrecognized legacy instruction for display", () => {
     expect(displayDuration("slowly push")).toBe("slowly push");
   });
+
+  it("supports day expiry and displays legacy minutes as equivalent hours", () => {
+    expect(parseDuration("2 days")).toMatchObject({ value: "2", unit: "day" });
+    expect(convertDurationValue("36", "hour", "day")).toBe("1.5");
+    expect(convertDurationValue("1.5", "day", "hour")).toBe("36");
+    expect(serializeDuration("1.5", "day")).toBe("1.5 day");
+    expect(displayDuration("90 min", true, true)).toBe("1.5 hr");
+    expect(displayDuration("2 days", true, true)).toBe("2 day");
+  });
 });

@@ -1,3 +1,4 @@
+import { editFormKeyboard } from "../components/editFormKeyboard";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -148,7 +149,7 @@ export function PatientForm({ patient, initialHn, onCancel, onSaved }: PatientFo
         <div className="inline-alert inline-alert--error" role="alert">{saveError}</div>
       )}
 
-      <form className="patient-form patient-record-form" onSubmit={(event) => void submit(event)} noValidate>
+      <form onKeyDownCapture={editFormKeyboard} className="patient-form patient-record-form" onSubmit={(event) => void submit(event)} noValidate>
         <FormSection
           title="Identity"
           description="HN is the required clinical identifier."

@@ -1,12 +1,30 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FirstRunSetup, LoginScreen } from "./AuthScreens";
+import { UsernameHistoryScope } from "./usernameHistory";
 
 describe("local authentication screens", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it("offers remembered usernames with the most recent selected and an empty password", () => {
+    vi.stubGlobal("window", { localStorage: { getItem: () => '["recent.user","other.user"]' } });
+    const html = renderToStaticMarkup(<UsernameHistoryScope.Provider value="test-history"><LoginScreen onAuthenticated={() => undefined} /></UsernameHistoryScope.Provider>);
+    expect(html).toContain("Saved usernames");
+    expect(html).toContain('value="recent.user" selected=""');
+    expect(html).toContain("other.user");
+    expect(html).toContain("Use another username");
+    expect(html).toContain("Clear saved usernames");
+    expect(html).toMatch(/type="password"[^>]*value=""/);
+  });
+
+  it("keeps manual login available without saved history", () => {
+    const html = renderToStaticMarkup(<LoginScreen onAuthenticated={() => undefined} />);
+    expect(html).toContain('autoComplete="username"');
+    expect(html).not.toContain("Saved usernames");
+  });
   it("renders first-run setup without factory credentials", () => {
     const html = renderToStaticMarkup(<FirstRunSetup onAuthenticated={() => undefined} />);
-    expect(html).toContain("Create the first local account");
+    expect(html).toContain("Create the first administrator account");
     expect(html).toContain("Legacy Access passwords are never accepted");
     expect(html).toContain("No factory password is created");
     expect(html).not.toContain("admin/admin");

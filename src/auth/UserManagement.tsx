@@ -1,6 +1,7 @@
+import { editFormKeyboard } from "../components/editFormKeyboard";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { commandError, createUser, listUsers, updateUser } from "../api/commands";
+import { commandError, createUser, listUsers, resetUserPassword, updateUser } from "../api/commands";
 import { PageDescription } from "../guidance/PageGuidance";
 import type { ManagedUser, UserRole, UserType } from "../types/auth";
 
@@ -27,6 +28,7 @@ const EMPTY_USER: UserFormValues = {
 };
 
 export function UserManagement({ currentUserId }: { currentUserId: number }) {
+  const [resetting, setResetting] = useState<ManagedUser | null>(null);
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -54,6 +56,7 @@ export function UserManagement({ currentUserId }: { currentUserId: number }) {
   useEffect(() => { void load(); }, [load]);
 
   function beginCreate() {
+    setResetting(null);
     setEditing(null);
     setValues(EMPTY_USER);
     setErrors({});
@@ -62,7 +65,8 @@ export function UserManagement({ currentUserId }: { currentUserId: number }) {
   }
 
   function beginEdit(user: ManagedUser) {
-    if (user.id === currentUserId) return;
+    if (user.id === currentUserId || busy) return;
+    setResetting(null);
     setEditing(user);
     setValues({
       username: user.username,
@@ -145,7 +149,8 @@ export function UserManagement({ currentUserId }: { currentUserId: number }) {
       onCancel={() => { if (!busy) { setFormOpen(false); setEditing(null); setErrors({}); } }}
       onSubmit={(event) => void submit(event)}
     />}
-    <UserTable users={users} currentUserId={currentUserId} loading={loading} onEdit={beginEdit} />
+    {resetting && <PasswordResetEditor key={resetting.id} user={resetting} onBusy={setBusy} onCancel={() => setResetting(null)} onDone={() => { setResetting(null); setMessage("Password reset. The user must sign in with the new password."); }} />}
+    <UserTable users={users} currentUserId={currentUserId} loading={loading} onEdit={beginEdit} busy={busy} onReset={(user) => { if (busy) return; setFormOpen(false); setValues(EMPTY_USER); setMessage(null); setResetting(user); }} />
   </section>;
 }
 
@@ -160,7 +165,7 @@ function UserEditor({ editing, values, errors, busy, onField, onCancel, onSubmit
 }) {
   return <section className="surface user-editor" aria-labelledby="user-editor-heading">
     <div><p className="eyebrow">{editing ? "Manage account" : "New local account"}</p><h2 id="user-editor-heading">{editing ? editing.displayName : "Add user"}</h2></div>
-    <form onSubmit={onSubmit} noValidate>
+    <form onKeyDownCapture={editFormKeyboard} onSubmit={onSubmit} noValidate>
       <UserField label="Username" error={errors.username}><input autoComplete="off" value={values.username} disabled={busy} onChange={(event) => onField("username", event.target.value)} /></UserField>
       <UserField label="Display name" error={errors.displayName}><input autoComplete="off" value={values.displayName} disabled={busy} onChange={(event) => onField("displayName", event.target.value)} /></UserField>
       <UserField label="User type" error={errors.userType}><select value={values.userType} disabled={busy} onChange={(event) => onField("userType", event.target.value === "non_pharmacist" ? "non_pharmacist" : "pharmacist")}><option value="pharmacist">Pharmacist</option><option value="non_pharmacist">Assistant pharmacist</option></select></UserField>
@@ -173,15 +178,17 @@ function UserEditor({ editing, values, errors, busy, onField, onCancel, onSubmit
   </section>;
 }
 
-export function UserTable({ users, currentUserId, loading, onEdit }: {
+export function UserTable({ users, currentUserId, loading, onEdit, onReset, busy = false }: {
   users: ManagedUser[];
   currentUserId: number;
   loading: boolean;
   onEdit: (user: ManagedUser) => void;
+  onReset?: (user: ManagedUser) => void;
+  busy?: boolean;
 }) {
   if (loading) return <div className="detail-loading" aria-busy="true">Loading local users…</div>;
   if (users.length === 0) return <div className="empty-state"><h2>No manageable users</h2><p>Create the first additional local account.</p></div>;
-  return <div className="list-card"><div className="table-scroll"><table className="patient-table users-table"><thead><tr><th>Name</th><th>Username</th><th>User type</th><th>Access</th><th>Status</th><th aria-label="Actions" /></tr></thead><tbody>{users.map((user) => <tr key={user.id}><td><strong>{user.displayName}</strong>{user.id === currentUserId && <span className="row-subtitle">Current account</span>}</td><td>@{user.username}</td><td><span className={`user-type user-type--${user.userType}`}>{user.userType === "pharmacist" ? "Pharmacist" : "Assistant pharmacist"}</span></td><td>{user.role === "admin" ? "Administrator" : "Standard"}</td><td><span className={user.active ? "status-badge status-badge--active" : "status-badge status-badge--inactive"}>{user.active ? "Active" : "Inactive"}</span></td><td><button className="row-action" type="button" disabled={user.id === currentUserId} title={user.id === currentUserId ? "Manage your password under Account" : "Edit user"} onClick={() => onEdit(user)}>Edit</button></td></tr>)}</tbody></table></div></div>;
+  return <div className="list-card"><div className="table-scroll"><table className="patient-table users-table"><thead><tr><th>Name</th><th>Username</th><th>User type</th><th>Access</th><th>Status</th><th aria-label="Actions" /></tr></thead><tbody>{users.map((user) => <tr key={user.id}><td><strong>{user.displayName}</strong>{user.id === currentUserId && <span className="row-subtitle">Current account</span>}</td><td>@{user.username}</td><td><span className={`user-type user-type--${user.userType}`}>{user.userType === "pharmacist" ? "Pharmacist" : "Assistant pharmacist"}</span></td><td>{user.role === "admin" ? "Administrator" : "Standard"}</td><td><span className={user.active ? "status-badge status-badge--active" : "status-badge status-badge--inactive"}>{user.active ? "Active" : "Inactive"}</span></td><td><button className="row-action" type="button" disabled={busy || user.id === currentUserId} title={user.id === currentUserId ? "Manage your password under Account" : "Edit user"} onClick={() => onEdit(user)}>Edit</button>{onReset && <button className="row-action" type="button" disabled={busy || user.id === currentUserId} onClick={() => onReset(user)}>Reset password</button>}</td></tr>)}</tbody></table></div></div>;
 }
 
 function UserField({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
@@ -204,4 +211,43 @@ export function validateManagedUser(values: UserFormValues, editing: boolean): U
     if (values.confirmPassword !== values.password) errors.confirmPassword = "Passwords do not match.";
   }
   return errors;
+}
+
+export function validatePasswordReset(username: string, password: string, confirmation: string): string | null {
+  if ([...password].length < 12 || [...password].length > 128) return "Password must be 12–128 characters.";
+  if (password.toLowerCase() === username.toLowerCase()) return "Password must differ from the username.";
+  if (password !== confirmation) return "Passwords do not match.";
+  return null;
+}
+
+export function PasswordResetEditor({ user, onBusy, onCancel, onDone }: { user: ManagedUser; onBusy: (busy: boolean) => void; onCancel: () => void; onDone: () => void }) {
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (lock.current) return;
+    const validation = validatePasswordReset(user.username, password, confirmation);
+    setError(validation);
+    if (validation) return;
+    lock.current = true; setBusy(true); onBusy(true);
+    try {
+      await resetUserPassword(user.id, password);
+      setPassword(""); setConfirmation(""); onDone();
+    } catch (failure) {
+      setError(commandError(failure).message ?? "Password could not be reset.");
+    } finally { lock.current = false; setBusy(false); onBusy(false); }
+  }
+  return <section className="surface user-editor" aria-labelledby="reset-password-heading">
+    <h2 id="reset-password-heading">Reset password — {user.displayName} (@{user.username})</h2>
+    <p>The old password will stop working and existing sessions will end. Inactive accounts remain inactive.</p>
+    <form onKeyDownCapture={editFormKeyboard} onSubmit={(event) => void submit(event)} noValidate>
+      {error && <div className="form-error-summary" role="alert">{error}</div>}
+      <UserField label="New password (12–128 characters)"><input type="password" autoComplete="new-password" value={password} disabled={busy} onChange={(event) => setPassword(event.target.value)} /></UserField>
+      <UserField label="Confirm new password"><input type="password" autoComplete="new-password" value={confirmation} disabled={busy} onChange={(event) => setConfirmation(event.target.value)} /></UserField>
+      <div className="user-editor__actions"><button className="button button--secondary" type="button" disabled={busy} onClick={onCancel}>Cancel</button><button className="button button--primary" type="submit" disabled={busy}>{busy ? "Resetting…" : "Confirm password reset"}</button></div>
+    </form>
+  </section>;
 }

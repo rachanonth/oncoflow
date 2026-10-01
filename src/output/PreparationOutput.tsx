@@ -1,8 +1,9 @@
 import { useEffect, useRef, type CSSProperties } from "react";
 
 import { displayDateTime, displayLocalDateTime } from "../shared/dateTime";
-import { DEFAULT_LABEL_FONT_SIZES } from "../hardware/printerSettings";
-import type { LabelFontSizes } from "../types/hardware";
+import { useLocalLabelFont } from "../hardware/useLocalLabelFont";
+import { DEFAULT_LABEL_FONT_SIZES, DEFAULT_LABEL_ROW_STYLES } from "../hardware/printerSettings";
+import type { LabelFontSizes, LabelRowStyles, LabelRowKey } from "../types/hardware";
 import type { PreparationOutput } from "../types/output";
 
 export interface LabelDimensions {
@@ -13,15 +14,18 @@ export interface LabelDimensions {
 }
 
 export const LABEL_DIMENSIONS: LabelDimensions[] = [
+  { id: "label80", label: "80 × 70 mm", widthMm: 80, heightMm: 70 },
   { id: "compact", label: "Compact · 100 × 70 mm", widthMm: 100, heightMm: 70 },
   { id: "narrow", label: "Narrow · 100 × 50 mm", widthMm: 100, heightMm: 50 },
   { id: "large", label: "Large · 148 × 105 mm", widthMm: 148, heightMm: 105 },
 ];
 
-export function PreparationOutputView({ output, dimensions, fontSizes = DEFAULT_LABEL_FONT_SIZES, preprintHeaderSpacingMm = 5, printerName, busy, error, message, onClose, onPrint, onDimensions }: {
+export function PreparationOutputView({ output, dimensions, fontSizes = DEFAULT_LABEL_FONT_SIZES, fontName, rowStyles = DEFAULT_LABEL_ROW_STYLES, preprintHeaderSpacingMm = 5, printerName, busy, error, message, onClose, onPrint, onDimensions }: {
   output: PreparationOutput;
   dimensions: LabelDimensions;
   fontSizes?: LabelFontSizes;
+  rowStyles?: LabelRowStyles;
+  fontName?: string | null;
   preprintHeaderSpacingMm?: number;
   printerName: string | null;
   busy: boolean;
@@ -31,11 +35,13 @@ export function PreparationOutputView({ output, dimensions, fontSizes = DEFAULT_
   onPrint: () => void;
   onDimensions: (dimensions: LabelDimensions) => void;
 }) {
+  const { fontFamily, error: fontError } = useLocalLabelFont(fontName);
   const { label, summary } = output;
   const containers = output.containers?.length ? output.containers : [{ containerIndex: 1 }];
   const printButtonLabel = `${output.printRequestCount > 0 ? "Reprint" : "Print"} ${containers.length === 1 ? "label" : `${containers.length} labels`}`;
   const dimensionChoices = LABEL_DIMENSIONS.some((value) => value.id === dimensions.id) ? LABEL_DIMENSIONS : [dimensions, ...LABEL_DIMENSIONS];
   const printStyle = {
+    fontFamily,
     "--preparation-label-width": `${dimensions.widthMm}mm`,
     "--preparation-label-height": `${dimensions.heightMm}mm`,
     "--preparation-label-margin": `${dimensions.widthMm / 35}mm`,
@@ -56,6 +62,7 @@ export function PreparationOutputView({ output, dimensions, fontSizes = DEFAULT_
         <div><p className="eyebrow">Checked preparation output</p><h2 id="preparation-output-heading">Preparation label</h2><p>Frozen snapshot #{label.snapshotId} · {label.templateVersion}</p></div>
         <button className="button button--secondary" type="button" onClick={onClose} aria-label="Close label preview">Close</button>
       </header>
+      {fontError && <div className="form-error-summary" role="alert">{fontError}</div>}
       {error && <div className="form-error-summary" role="alert">{error}</div>}
       {message && <div className="auth-success preparation-output-message" role="status">{message}</div>}
       <div className="preparation-output-toolbar">
@@ -64,7 +71,7 @@ export function PreparationOutputView({ output, dimensions, fontSizes = DEFAULT_
         <button className="button button--primary" type="button" disabled={busy || !printerName} onClick={onPrint}>{busy ? "Sending to Windows…" : printButtonLabel}</button>
       </div>
       <div className="preparation-output-scroll">
-        {containers.map((container) => <PreparationLabelPreview key={container.containerIndex} output={output} containerIndex={container.containerIndex} containerCount={containers.length} style={printStyle} fontSizes={fontSizes} />)}
+        {containers.map((container) => <PreparationLabelPreview key={container.containerIndex} output={output} containerIndex={container.containerIndex} containerCount={containers.length} style={printStyle} fontSizes={fontSizes} rowStyles={rowStyles} />)}
 
         <article className="preparation-summary surface" aria-labelledby="preparation-summary-heading">
           <header><div><p className="eyebrow">Pharmacist reference</p><h3 id="preparation-summary-heading">Preparation summary</h3></div><span>Generated {displayDateTime(label.generatedAt)}</span></header>
@@ -91,13 +98,15 @@ export function PreparationOutputView({ output, dimensions, fontSizes = DEFAULT_
   </div>;
 }
 
-function PreparationLabelPreview({ output, containerIndex, containerCount, style, fontSizes }: {
+function PreparationLabelPreview({ output, containerIndex, containerCount, style, fontSizes, rowStyles }: {
   output: PreparationOutput;
   containerIndex: number;
   containerCount: number;
   style: CSSProperties;
   fontSizes: LabelFontSizes;
+  rowStyles: LabelRowStyles;
 }) {
+  const rowStyle = (key: LabelRowKey) => ({ "--label-row-weight": rowStyles[key].bold ? 700 : 400, textDecoration: rowStyles[key].underline ? "underline" : "none" }) as CSSProperties;
   const root = useRef<HTMLElement>(null);
   const { label, summary } = output;
   useEffect(() => {
@@ -115,42 +124,53 @@ function PreparationLabelPreview({ output, containerIndex, containerCount, style
       element.style.setProperty("--preparation-label-font-prepared-by", `${fontSizes.preparedBy * scale}px`);
       element.style.setProperty("--preparation-label-font-expiration", `${fontSizes.expiration * scale}px`);
       element.style.setProperty("--preparation-label-line-padding", `${0.35 * scale}mm`);
-      element.style.setProperty("--preparation-label-header-gap", `${0.75 * scale}mm`);
     };
     const fit = () => {
+      content.style.height = "auto";
+      const lines = content.querySelector<HTMLElement>(".preparation-label__lines");
+      if (lines) lines.style.flex = "";
       applyScale(1);
       const computed = window.getComputedStyle(element);
       const available = element.clientHeight - Number.parseFloat(computed.paddingTop) - Number.parseFloat(computed.paddingBottom);
-      if (content.scrollHeight <= available) return;
       let lower = 0.35;
-      let upper = 1;
+      let upper = 4;
       applyScale(lower);
       for (let index = 0; index < 12; index += 1) {
         const candidate = (lower + upper) / 2;
         applyScale(candidate);
-        if (content.scrollHeight <= available) lower = candidate;
+        const rowsFit = Array.from(content.querySelectorAll<HTMLElement>("p, header")).every(
+          (row) => row.scrollWidth <= row.clientWidth,
+        );
+        if (content.scrollHeight <= available && content.scrollWidth <= content.clientWidth && rowsFit) lower = candidate;
         else upper = candidate;
       }
       applyScale(lower);
+      content.style.height = `${available}px`;
+      if (lines) lines.style.flex = "1";
     };
     fit();
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(fit);
     observer?.observe(element);
-    return () => observer?.disconnect();
-  }, [fontSizes, label, summary, containerCount]);
+    document.fonts?.addEventListener("loadingdone", fit);
+    return () => {
+      observer?.disconnect();
+      document.fonts?.removeEventListener("loadingdone", fit);
+    };
+  }, [fontSizes, rowStyles, label, summary, containerCount, style.fontFamily]);
 
   return <article ref={root} className="preparation-label-print-root" style={style} aria-label={`Final checked preparation label ${containerIndex}/${containerCount}`}>
     <div className="preparation-label__fit">
-      <header className="preparation-label__header">OncoFlow{label.hospitalName ? ` - ${label.hospitalName}` : ""}</header>
       <div className="preparation-label__lines">
-        <p className="preparation-label__patient"><strong>{showDash(label.patientName)}</strong><span>| HN {label.patientIdentifier}</span></p>
-        <p className="preparation-label__withdrawal">{withdrawalVolume(label.withdrawalVolumeMl)}</p>
-        <p className="preparation-label__drug-line">{drugLine(label)}</p>
-        <p className="preparation-label__route-rate">{routeRateLine(label.routeName, label.infusionRateOrDuration)}</p>
-        <p className="preparation-label__storage">{showDash(summary.storageReference)}</p>
-        <p className="preparation-label__warning">{showDash(label.warningText)}</p>
-        <p className="preparation-label__prepared-by">{joinPlain(`Prepared by ${showDash(label.preparedBy)}`, displayDateTime(label.preparedAt), " | ")}</p>
-        <p className="preparation-label__expiration"><strong>หมดอายุ {displayLocalDateTime(label.expirationAt, "—")}</strong><b>({containerIndex}/{containerCount})</b></p>
+      <header data-label-row="header" style={rowStyle("header")} className="preparation-label__header">{`HN ${label.patientIdentifier} | หอผู้ป่วย ${showDash(label.wardName)}`}</header>
+        <p data-label-row="patient" style={rowStyle("patient")} className="preparation-label__patient"><strong>{showDash(label.patientName)}</strong></p>
+        <p data-label-row="withdrawal" style={rowStyle("withdrawal")} className="preparation-label__withdrawal">{withdrawalVolume(label.withdrawalVolumeMl)}</p>
+        <p data-label-row="drug" style={rowStyle("drug")} className="preparation-label__drug-line">ยา: {drugLine(label)}</p>
+        <p data-label-row="diluent" style={rowStyle("diluent")} className="preparation-label__drug-line">in {joinPlain(label.diluentName, volume(label.diluentVolumeMl))}</p>
+        <p data-label-row="routeRate" style={rowStyle("routeRate")} className="preparation-label__route-rate">วิธีให้ยา: {routeRateLine(label.routeName, label.infusionRateOrDuration)}</p>
+        <p data-label-row="storage" style={rowStyle("storage")} className="preparation-label__storage">การเก็บยา: {showDash(summary.storageReference)}</p>
+        <p data-label-row="warning" style={rowStyle("warning")} className="preparation-label__warning">คำเตือน: {showDash(label.warningText)}</p>
+        <p data-label-row="preparedBy" style={rowStyle("preparedBy")} className="preparation-label__prepared-by">เตรียมเมื่อ {displayDateTime(label.preparedAt)}</p>
+        <p data-label-row="expiration" style={rowStyle("expiration")} className="preparation-label__expiration"><strong>หมดอายุ {displayLocalDateTime(label.expirationAt, "—")}</strong><b>({containerIndex}/{containerCount})</b></p>
       </div>
     </div>
   </article>;
@@ -172,13 +192,12 @@ function join(...values: Array<string | null | undefined>): string | null { retu
 function joinPlain(first: string | null | undefined, second: string | null | undefined, separator = " "): string { return [first, second].map((value) => value?.trim()).filter(Boolean).join(separator) || "—"; }
 function drugLine(label: PreparationOutput["label"]): string {
   const drugAndDose = [label.drugName, label.orderedDoseText, label.doseUnitText].map((value) => value?.trim()).filter(Boolean).join(" ");
-  const diluent = joinPlain(label.diluentName, volume(label.diluentVolumeMl));
-  return diluent === "—" ? drugAndDose : `${drugAndDose} in ${diluent}`;
+  return drugAndDose;
 }
-function withdrawalVolume(value: string | null): string { return `Withdrawal: ${value?.trim() ? `${value.trim()} mL` : "—"}`; }
+function withdrawalVolume(value: string | null): string { return `ดูดยา: ${value?.trim() ? `${value.trim()} mL` : "—"}`; }
 function routeRateLine(route: string | null, rate: string | null): string {
   const value = rate?.trim();
-  if (!value || rateStartsWithZero(value)) return showDash(route);
+  if (!value || rateStartsWithZero(value)) return joinPlain(route, "ตามโปรโตคอล");
   return joinPlain(route, `in ${value}`);
 }
 function rateStartsWithZero(value: string): boolean {

@@ -1,5 +1,6 @@
+use super::cancellation::{CancelOrderInput, CancellationPreview};
+use crate::command_state::State;
 use serde::Serialize;
-use tauri::State;
 
 use crate::{auth::AuthSession, db::Database};
 
@@ -15,6 +16,40 @@ pub(crate) struct CommandError {
     code: &'static str,
     message: String,
     field: Option<&'static str>,
+}
+
+#[tauri::command]
+pub(crate) fn get_order_cancellation_preview(
+    database: State<'_, Database>,
+    session: State<'_, AuthSession>,
+    order_id: i64,
+    item_id: Option<i64>,
+) -> Result<CancellationPreview, CommandError> {
+    session.require_user().map_err(|_| CommandError {
+        code: "authentication_required",
+        message: "Sign in to review cancellation.".into(),
+        field: None,
+    })?;
+    OrderService::new(&database)
+        .cancellation_preview(order_id, item_id)
+        .map_err(Into::into)
+}
+
+#[tauri::command]
+pub(crate) fn cancel_order(
+    database: State<'_, Database>,
+    session: State<'_, AuthSession>,
+    order_id: i64,
+    input: CancelOrderInput,
+) -> Result<OrderDetail, CommandError> {
+    let actor = session.require_user().map_err(|_| CommandError {
+        code: "authentication_required",
+        message: "Sign in to cancel an order.".into(),
+        field: None,
+    })?;
+    OrderService::new(&database)
+        .cancel(order_id, input, actor.id)
+        .map_err(Into::into)
 }
 
 impl From<OrderError> for CommandError {

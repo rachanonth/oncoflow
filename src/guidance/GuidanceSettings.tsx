@@ -1,3 +1,4 @@
+import { editFormKeyboard } from "../components/editFormKeyboard";
 import { useEffect, useRef, useState } from "react";
 
 import { commandError } from "../api/commands";
@@ -41,14 +42,14 @@ export function GuidanceSettings() {
 
   return <section className="workspace guidance-workspace" aria-labelledby="guidance-heading">
     <div className="page-heading"><div><p className="eyebrow">Settings</p><h1 id="guidance-heading">Guidance</h1><PageDescription pageKey="guidance" /></div></div>
-    <div className="surface guidance-editor">
+    <div onKeyDownCapture={editFormKeyboard} className="surface guidance-editor">
       <div className="guidance-editor__heading"><div><p className="eyebrow">Page copy</p><h2>Optional workstation guidance</h2></div><span>{value.trim().length}/500</span></div>
       {state.error && <div className="auth-error" role="alert">{state.error} <button className="button button--compact button--secondary" type="button" onClick={() => void state.reload()}>Retry</button></div>}
       {message && <div className={message.tone === "error" ? "auth-error" : "auth-success"} role={message.tone === "error" ? "alert" : "status"}>{message.text}</div>}
       <label className="form-field"><span className="field-label">Page</span><select value={selected} disabled={busy || state.loading} onChange={(event) => setSelected(event.target.value as PageKey)}>{PAGE_DESCRIPTIONS.map((page) => <option key={page.key} value={page.key}>{page.title}</option>)}</select></label>
       <div className="guidance-standard"><span>Standard description</span><p lang="th">{standard.description}</p></div>
       <label className="form-field"><span className="field-label">Guidance</span><textarea rows={4} maxLength={500} value={value} disabled={busy || state.loading} placeholder="Optional instructions for this workstation" onChange={(event) => { setValue(event.target.value); setMessage(null); }} /><small>Do not enter patient-identifying information or use Guidance to define clinical rules.</small></label>
-      <div className="guidance-editor__actions"><button className="button button--secondary" type="button" disabled={busy || !state.guidance[selected]} onClick={() => void persist(null)}>Reset</button><button className="button button--primary" type="button" disabled={busy || state.loading} onClick={() => void persist(value)}>{busy ? "Saving…" : "Save Guidance"}</button></div>
+      <div className="guidance-editor__actions"><button className="button button--secondary" type="button" disabled={busy || !state.guidance[selected]} onClick={() => void persist(null)}>Reset</button><button className="button button--primary" type="button" disabled={busy || state.loading} data-editor-save onClick={() => void persist(value)}>{busy ? "Saving…" : "Save Guidance"}</button></div>
     </div>
   </section>;
 }

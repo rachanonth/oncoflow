@@ -1,3 +1,4 @@
+import { editFormKeyboard } from "../components/editFormKeyboard";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -125,7 +126,7 @@ export function DrugForm({ drug, onCancel, onSaved }: DrugFormProps) {
       {optionsError && <div className="inline-alert" role="alert">{optionsError} Lookup fields are temporarily unavailable.</div>}
       {saveError && <div className="inline-alert inline-alert--error" role="alert">{saveError}</div>}
 
-      <form className="patient-form drug-record-form" onSubmit={(event) => void submit(event)} noValidate>
+      <form onKeyDownCapture={editFormKeyboard} className="patient-form drug-record-form" onSubmit={(event) => void submit(event)} noValidate>
         <DrugFormSection title="Identity" description="Drug code is assigned automatically in the background and cannot be edited.">
           <DrugField label="Drug name" required error={errors.name} className="drug-grid__two-thirds">
             <input autoFocus maxLength={255} value={values.name} onChange={(event) => setField("name", event.target.value)} aria-invalid={Boolean(errors.name)} />
@@ -178,6 +179,7 @@ export function DrugForm({ drug, onCancel, onSaved }: DrugFormProps) {
               onChange={(value) => setField("expiryTime", value)}
               unitLabel="Expiry time unit"
               defaultUnit="hour"
+              hoursAndDays
               allowClock
               invalid={Boolean(errors.expiryTime)}
             />
@@ -271,6 +273,7 @@ function DurationInput({
   unitLabel,
   defaultUnit = "minute",
   allowClock = false,
+  hoursAndDays = false,
   invalid,
 }: {
   value: string;
@@ -278,11 +281,18 @@ function DurationInput({
   unitLabel: string;
   defaultUnit?: DurationUnit;
   allowClock?: boolean;
+  hoursAndDays?: boolean;
   invalid: boolean;
 }) {
   const parsed = useMemo(
-    () => parseDuration(value, { allowClock, defaultUnit }),
-    [allowClock, defaultUnit, value],
+    () => {
+      const result = parseDuration(value, { allowClock, defaultUnit });
+      if (hoursAndDays && result.unit === "minute" && result.value !== null) {
+        return { ...result, value: convertDurationValue(result.value, "minute", "hour"), unit: "hour" as const };
+      }
+      return result;
+    },
+    [allowClock, defaultUnit, hoursAndDays, value],
   );
   const [unit, setUnit] = useState<DurationUnit>(() => parsed.unit);
 
@@ -310,11 +320,12 @@ function DurationInput({
           onChange={(event) => onChange(serializeDuration(event.target.value, unit))}
           aria-invalid={invalid}
         />
-        <span>{unit === "minute" ? "min" : "hr"}</span>
+        <span>{unit === "minute" ? "min" : unit === "hour" ? "hr" : "day"}</span>
       </div>
       <div className="rate-unit-toggle" role="group" aria-label={unitLabel}>
-        <button className={unit === "minute" ? "is-active" : ""} type="button" aria-pressed={unit === "minute"} onClick={() => changeUnit("minute")}>Minutes</button>
+        {!hoursAndDays && <button className={unit === "minute" ? "is-active" : ""} type="button" aria-pressed={unit === "minute"} onClick={() => changeUnit("minute")}>Minutes</button>}
         <button className={unit === "hour" ? "is-active" : ""} type="button" aria-pressed={unit === "hour"} onClick={() => changeUnit("hour")}>Hours</button>
+        {hoursAndDays && <button className={unit === "day" ? "is-active" : ""} type="button" aria-pressed={unit === "day"} onClick={() => changeUnit("day")}>Days</button>}
       </div>
       {unparsedValue && <small>Existing value: {unparsedValue}. Enter a number to replace it.</small>}
     </div>

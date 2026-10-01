@@ -1,3 +1,4 @@
+import { editFormKeyboard } from "../components/editFormKeyboard";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -128,7 +129,7 @@ export function PreparationWorkspace({ orderId, preparationDate, onBack, onOpenO
     onToggleSelected={(taskId, selected) => setSelectedTaskIds((current) => { const next = new Set(current); if (selected) next.add(taskId); else next.delete(taskId); return next; })}
     onPrintAll={() => void printBatch(false)}
     onPrintSelected={() => void printBatch(true)}
-  />{output && <PreparationOutputView output={output} dimensions={labelDimensions} fontSizes={printerConfig?.fontSizes} preprintHeaderSpacingMm={printerConfig?.preprintHeaderSpacingMm} printerName={printerConfig?.spoolerName ?? null} busy={outputBusy} error={outputError} message={outputMessage} onClose={() => { setOutput(null); setOutputError(null); setOutputMessage(null); }} onPrint={() => void printOutput()} onDimensions={setLabelDimensions} />}</>;
+  />{output && <PreparationOutputView output={output} dimensions={labelDimensions} fontSizes={printerConfig?.fontSizes} fontName={printerConfig?.fontName} rowStyles={printerConfig?.rowStyles} preprintHeaderSpacingMm={printerConfig?.preprintHeaderSpacingMm} printerName={printerConfig?.spoolerName ?? null} busy={outputBusy} error={outputError} message={outputMessage} onClose={() => { setOutput(null); setOutputError(null); setOutputMessage(null); }} onPrint={() => void printOutput()} onDimensions={setLabelDimensions} />}</>;
 }
 
 export function PreparationWorkspaceView({ workspace, busy, operationError, batchMessage, selectedTaskIds, onBack, onOpenOrder, onSave, onCheck, onOutput, onToggleSelected, onPrintAll, onPrintSelected }: { workspace: Workspace; busy: boolean; operationError: string | null; batchMessage: string | null; selectedTaskIds: ReadonlySet<number>; onBack: () => void; onOpenOrder: () => void; onSave: (taskId: number, input: PreparationTaskInput) => void; onCheck: (taskId: number, input: PreparationTaskInput) => void; onOutput?: (taskId: number) => void; onToggleSelected: (taskId: number, selected: boolean) => void; onPrintAll: () => void; onPrintSelected: () => void }) {
@@ -166,7 +167,7 @@ function PreparationItemCard({ item, displaySequence, assignedPreparer, selected
     <PreparationCalculationPanel item={item} />
     {item.referenceQuantity.status === "calculated" && <details className="preparation-reference"><summary>Reference quantity provenance</summary><p>{item.referenceQuantity.formula}</p><p>Package equivalent: {item.referenceQuantity.packageEquivalent}</p><p>{item.referenceQuantity.notice}</p></details>}
     {(item.regimenDetails || item.drugDetail || item.drugStorage) && <div className="preparation-instructions"><h4>Preparation information</h4>{item.regimenDetails && <p><strong>Regimen:</strong> {item.regimenDetails}</p>}{item.drugDetail && <p><strong>Drug detail:</strong> {item.drugDetail}</p>}{item.drugStorage && <p><strong>Storage:</strong> {item.drugStorage}</p>}</div>}
-    {task && <div className="preparation-entry">
+    {task && <div onKeyDownCapture={editFormKeyboard} className="preparation-entry">
       <fieldset className="preparation-volume-method">
         <legend>วิธีกำหนด Final / preparation volume</legend>
         <label><input type="radio" name={`preparation-volume-method-${task.id}`} value="solution_plus_drug" checked={volumeMode === "solution_plus_drug"} disabled={readOnly || busy} onChange={() => setVolumeMode("solution_plus_drug")} />ปริมาตรสารละลาย + ปริมาตรยา <small>(ค่าเริ่มต้น)</small></label>
@@ -181,7 +182,7 @@ function PreparationItemCard({ item, displaySequence, assignedPreparer, selected
         <small>ฉลากทุกใบแสดง ordered dose และ final volume เหมือนกัน แตกต่างเฉพาะเลขฉลาก 1/{containerCount} ถึง {containerCount}/{containerCount} และไม่เกี่ยวกับจำนวน vial/ampoule ที่เบิกจากคลัง</small>
       </fieldset>
       {volumeInvalid && <p className="field-error">Enter zero or a positive number.</p>}
-      {task.state !== "verified" && <div className="preparation-entry__actions"><button className="button button--secondary" type="button" disabled={busy || volumeInvalid} onClick={() => onSave(task.id, preparationInput())}>Save preparation details</button><button className="button button--primary" type="button" disabled={busy || volumeInvalid || (!task.preparedBy && !assignedPreparer)} onClick={() => onCheck(task.id, preparationInput())}>Check preparation</button></div>}
+      {task.state !== "verified" && <div className="preparation-entry__actions"><button className="button button--secondary" type="button" disabled={busy || volumeInvalid} data-editor-save onClick={() => onSave(task.id, preparationInput())}>Save preparation details</button><button className="button button--primary" type="button" disabled={busy || volumeInvalid || (!task.preparedBy && !assignedPreparer)} onClick={() => onCheck(task.id, preparationInput())}>Check preparation</button></div>}
       {task.state !== "verified" && <p className="preparation-output-unavailable">Final label becomes available after preparation checking.</p>}
       {task.state === "verified" && <p className="preparation-verified">✓ Checked by <strong>{task.verifiedBy?.displayName ?? "Unknown prior actor"}</strong> {task.verifiedAt ? displayDateTime(task.verifiedAt) : ""}. The checked snapshot is now read-only.</p>}
     </div>}

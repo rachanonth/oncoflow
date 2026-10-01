@@ -802,13 +802,13 @@ mod tests {
         Connection::open(&future)
             .unwrap()
             .execute(
-                "UPDATE app_meta SET value='20' WHERE key='schema_version'",
-                [],
+                "UPDATE app_meta SET value=?1 WHERE key='schema_version'",
+                [(LATEST_SCHEMA_VERSION + 1).to_string()],
             )
             .unwrap();
         assert!(matches!(
             fixture.service().preflight_restore(&future),
-            Err(RecoveryError::UnsupportedFutureSchema { found: 20, .. })
+            Err(RecoveryError::UnsupportedFutureSchema { found, .. }) if found == LATEST_SCHEMA_VERSION + 1
         ));
 
         let candidate = fixture.candidate("changed", "changed.admin");
@@ -873,9 +873,11 @@ mod tests {
         let fixture = Fixture::new();
         let candidate = fixture.candidate("schema_eight", "schema8.admin");
         let connection = Connection::open(&candidate).unwrap();
+        crate::order::cancellation::remove_schema_for_migration_test(&connection);
         connection
             .execute_batch(
-                "DROP TABLE page_guidance;
+                "ALTER TABLE preparation_output_snapshots DROP COLUMN ward_name;
+                 DROP TABLE page_guidance;
                   ALTER TABLE preparation_tasks DROP COLUMN withdrawal_volume_ml;
                   ALTER TABLE preparation_output_snapshots DROP COLUMN withdrawal_volume_ml;
                   ALTER TABLE preparation_output_snapshots DROP COLUMN expiry_storage_text;

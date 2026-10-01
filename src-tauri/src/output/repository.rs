@@ -7,7 +7,7 @@ pub(super) fn list_order_preparation_ids(
     connection
         .prepare(
             "SELECT id FROM preparation_tasks
-             WHERE source_order_id=?1
+             WHERE source_order_id=?1 AND cancellation_id IS NULL
              ORDER BY CASE WHEN snapshot_sequence_no IS NULL THEN 1 ELSE 0 END,
                       snapshot_sequence_no,id",
         )?
@@ -23,7 +23,7 @@ pub(super) fn count_order_eligible_items(
         "SELECT COUNT(*)
          FROM order_items i
          JOIN drugs d ON d.id=i.drug_id
-         WHERE i.order_id=?1 AND d.marker=1",
+         WHERE i.order_id=?1 AND d.marker=1 AND i.cancellation_id IS NULL",
         [order_id],
         |row| row.get(0),
     )
@@ -54,10 +54,11 @@ pub(super) fn load_source(
                     posting.balance_before,posting.balance_after,posting.resulting_stock_state,
                     posting.calculation_ruleset_version,posting.calculation_rule_id,
                     t.final_container_count,settings.hospital_name,d.warning,d.expiry_time,
-                    d.expiry_storage,t.withdrawal_volume_ml
+                    d.expiry_storage,t.withdrawal_volume_ml,w.ward_name
              FROM preparation_tasks t
              JOIN orders o ON o.id=t.source_order_id
              JOIN patients p ON p.id=o.patient_id
+             LEFT JOIN wards w ON w.id=o.ward_id
              LEFT JOIN regimens r ON r.id=o.regimen_id
              JOIN drugs d ON d.id=t.drug_id
              LEFT JOIN users preparer ON preparer.id=t.prepared_by_user_id
@@ -111,6 +112,7 @@ pub(super) fn load_source(
                     expiry_time_text: row.get(37)?,
                     expiry_storage_text: row.get(38)?,
                     withdrawal_volume_ml: row.get(39)?,
+                    ward_name: row.get(40)?,
                 })
             },
         )
@@ -133,11 +135,11 @@ pub(super) fn insert_snapshot(
            inventory_movement_id,containers_required,inventory_balance_before,
            inventory_balance_after,inventory_stock_state,calculation_ruleset_version,
            calculation_rule_id,final_container_count,hospital_name,warning_text,
-           expiry_time_text,expiry_storage_text,withdrawal_volume_ml
+           expiry_time_text,expiry_storage_text,withdrawal_volume_ml,ward_name
          ) VALUES(
            ?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,
            ?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,?34,
-           ?35,?36,?37,?38,?39,?40
+           ?35,?36,?37,?38,?39,?40,?41
          )",
         params![
             source.preparation_id,
@@ -180,6 +182,7 @@ pub(super) fn insert_snapshot(
             source.expiry_time_text,
             source.expiry_storage_text,
             source.withdrawal_volume_ml,
+            source.ward_name,
         ],
     )?;
     Ok(())
@@ -225,7 +228,7 @@ pub(super) fn load_snapshot(
                        AND a.event_type IN (
                          'preparation_label_print_requested',
                          'preparation_label_reprint_requested'
-                       ))
+                       )),ward_name
              FROM preparation_output_snapshots
              WHERE preparation_task_id=?1",
             [preparation_id],
@@ -247,6 +250,7 @@ pub(super) fn load_snapshot(
                         order_reference: row.get(5)?,
                         patient_identifier: row.get(6)?,
                         patient_name: row.get(7)?,
+                        ward_name: row.get(43)?,
                         hospital_name: row.get(36)?,
                         regimen_name: row.get(8)?,
                         treatment_at: row.get(9)?,
@@ -274,7 +278,7 @@ pub(super) fn load_snapshot(
                         preparation_instructions: row.get(24)?,
                         preparation_notes: row.get(25)?,
                         storage_reference: row.get(26)?,
-                        safety_review_status: "verified_workflow_complete",
+                        safety_review_status: "verified_workflow_complete".into(),
                         inventory_posting_status: row.get(27)?,
                         inventory_movement_id: row.get(28)?,
                         containers_required: row.get(29)?,
@@ -283,7 +287,7 @@ pub(super) fn load_snapshot(
                         inventory_stock_state: row.get(32)?,
                         calculation_ruleset_version: row.get(33)?,
                         calculation_rule_id: row.get(34)?,
-                        presentation_notice: "Only persisted verification values are shown; no preparation calculation runs during output rendering.",
+                        presentation_notice: "Only persisted verification values are shown; no preparation calculation runs during output rendering.".into(),
                     },
                     print_request_count: row.get(42)?,
                 })

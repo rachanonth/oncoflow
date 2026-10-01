@@ -64,7 +64,7 @@ pub(super) fn list_orders(
         "SELECT o.id, o.legacy_orderid, o.patient_id, p.legacy_hn,
                 trim(COALESCE(p.title,'') || ' ' || COALESCE(p.first_name,'') || ' ' || COALESCE(p.last_name,'')),
                 o.order_time, r.regimen_name, d.doctor_name, w.ward_name,
-                o.order_type, COUNT(i.id), o.oncoflow_created,o.workflow_status,
+                o.order_type, COUNT(i.id), (o.oncoflow_created=1 AND o.cancellation_id IS NULL),CASE WHEN o.cancellation_id IS NOT NULL THEN 'cancelled' ELSE o.workflow_status END,
                 COALESCE((
                     SELECT json_group_array(json_object(
                         'drugName',drug_name,
@@ -78,7 +78,7 @@ pub(super) fn list_orders(
                                history_item.regimen_unit_text AS unit_text
                         FROM order_items history_item
                         JOIN drugs history_drug ON history_drug.id=history_item.drug_id
-                        WHERE history_item.order_id=o.id
+                        WHERE history_item.order_id=o.id AND history_item.cancellation_id IS NULL
                         ORDER BY COALESCE(history_item.ordering_no,history_item.id),history_item.id
                     )
                 ),'[]')
@@ -87,7 +87,7 @@ pub(super) fn list_orders(
          LEFT JOIN regimens r ON r.id=o.regimen_id
          LEFT JOIN doctors d ON d.id=o.doctor_id
          LEFT JOIN wards w ON w.id=o.ward_id
-         LEFT JOIN order_items i ON i.order_id=o.id
+         LEFT JOIN order_items i ON i.order_id=o.id AND i.cancellation_id IS NULL
          WHERE {filters}
          GROUP BY o.id
          ORDER BY {order}
@@ -122,10 +122,10 @@ pub(super) fn get_order(
                     o.regimen_id, r.regimen_name, o.note, o.order_time, o.order_type,
                     o.appointment_flag, o.legacy_worker, o.edit_worker,
                     o.side_effect_text, o.side_effect_recorder, o.side_effect_record_time,
-                    o.medication_error_text, o.oncoflow_created,
+                    o.medication_error_text, (o.oncoflow_created=1 AND o.cancellation_id IS NULL),
                     o.weight_kg, o.height_cm,o.assigned_preparer_user_id,
                     COALESCE(preparer.display_name,preparer.username),
-                    o.workflow_status,o.workflow_status_reason,o.workflow_status_changed_at,
+                    CASE WHEN o.cancellation_id IS NOT NULL THEN 'cancelled' ELSE o.workflow_status END,o.workflow_status_reason,o.workflow_status_changed_at,
                     COALESCE(status_actor.display_name,status_actor.username)
              FROM orders o
              JOIN patients p ON p.id=o.patient_id
@@ -138,6 +138,7 @@ pub(super) fn get_order(
             [order_id],
             |row| {
                 Ok(OrderDetail {
+                    cancellations: Vec::new(),
                     id: row.get(0)?,
                     order_id: row.get(1)?,
                     patient_id: row.get(2)?,
@@ -189,7 +190,7 @@ pub(super) fn get_order(
                     i.ordering_no, i.running_no, i.running_sum, i.inventory_date,
                     i.source_regimen_item_id, i.regimen_dose_text, i.regimen_unit_text,
                     i.regimen_route_text, i.regimen_details, i.regimen_item_group,
-                    i.regimen_duration, i.regimen_start_day, i.regimen_ordering_no
+                    i.regimen_duration, i.regimen_start_day, i.regimen_ordering_no, i.cancellation_id IS NOT NULL
              FROM order_items i
              JOIN drugs d ON d.id=i.drug_id
              LEFT JOIN diluents dl ON dl.id=i.diluent_id
@@ -199,6 +200,7 @@ pub(super) fn get_order(
         )?
         .query_map([order_id], map_order_item)?
         .collect::<Result<Vec<_>, _>>()?;
+    detail.cancellations = super::cancellation::history(connection, order_id)?;
     detail.status_events = load_status_events(connection, order_id)?;
     detail.cumulative_doses =
         crate::safety::cumulative_dose_summaries(connection, detail.patient_id)?;
@@ -239,7 +241,7 @@ pub(super) fn load_workflow_status(
 ) -> rusqlite::Result<Option<(bool, OrderWorkflowStatus)>> {
     transaction
         .query_row(
-            "SELECT oncoflow_created,workflow_status FROM orders WHERE id=?1",
+            "SELECT (oncoflow_created=1 AND cancellation_id IS NULL),CASE WHEN cancellation_id IS NOT NULL THEN 'cancelled' ELSE workflow_status END FROM orders WHERE id=?1",
             [order_id],
             |row| {
                 Ok((
@@ -367,7 +369,7 @@ pub(super) fn is_editable(
 ) -> rusqlite::Result<Option<bool>> {
     transaction
         .query_row(
-            "SELECT oncoflow_created FROM orders WHERE id=?1",
+            "SELECT (oncoflow_created=1 AND cancellation_id IS NULL) FROM orders WHERE id=?1",
             [order_id],
             |row| Ok(row.get::<_, i64>(0)? != 0),
         )
@@ -546,7 +548,7 @@ pub(super) fn set_item_order(
     ordering_no: i64,
 ) -> rusqlite::Result<usize> {
     transaction.execute(
-        "UPDATE order_items SET ordering_no=?1 WHERE id=?2 AND order_id=?3",
+        "UPDATE order_items SET ordering_no=?1 WHERE id=?2 AND order_id=?3 AND cancellation_id IS NULL",
         params![ordering_no, item_id, order_id],
     )
 }
@@ -691,6 +693,7 @@ fn map_order_summary(row: &Row<'_>) -> rusqlite::Result<OrderSummary> {
 
 fn map_order_item(row: &Row<'_>) -> rusqlite::Result<OrderItemDetail> {
     Ok(OrderItemDetail {
+        cancelled: row.get(30)?,
         id: row.get(0)?,
         drug_id: row.get(1)?,
         drug_name: row.get(2)?,

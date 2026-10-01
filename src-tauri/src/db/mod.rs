@@ -8,7 +8,7 @@ use rusqlite::{backup::Backup, Connection, OptionalExtension};
 use thiserror::Error;
 
 pub const DATABASE_FILENAME: &str = "oncoflow.db";
-pub(crate) const LATEST_SCHEMA_VERSION: i64 = 19;
+pub(crate) const LATEST_SCHEMA_VERSION: i64 = 21;
 pub(crate) const MIN_SUPPORTED_SCHEMA_VERSION: i64 = 1;
 pub(crate) const RECOVERY_DIRECTORY: &str = "backups";
 const MIGRATION_BACKUP_RETENTION: usize = 7;
@@ -46,6 +46,9 @@ const PREPARATION_LABEL_CONTENT_MIGRATION: &str =
     include_str!("../../../migrations/018_preparation_label_content.sql");
 const PREPARATION_WITHDRAWAL_VOLUME_MIGRATION: &str =
     include_str!("../../../migrations/019_preparation_withdrawal_volume.sql");
+
+const PREPARATION_LABEL_WARD_MIGRATION: &str =
+    include_str!("../../../migrations/020_preparation_label_ward.sql");
 
 #[derive(Debug)]
 pub struct Database {
@@ -222,6 +225,15 @@ pub(crate) fn apply_migrations(connection: &Connection) -> Result<(), DatabaseEr
     }
     if current < 19 {
         connection.execute_batch(PREPARATION_WITHDRAWAL_VOLUME_MIGRATION)?;
+    }
+
+    if current < 20 {
+        connection.execute_batch(PREPARATION_LABEL_WARD_MIGRATION)?;
+    }
+    if current < 21 {
+        connection.execute_batch(include_str!(
+            "../../../migrations/021_order_cancellation.sql"
+        ))?;
     }
 
     match read_schema_version(connection)? {

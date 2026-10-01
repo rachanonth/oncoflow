@@ -82,3 +82,19 @@ SHA-256: 37250CAB607DBFFFF35F992370B0BDAB104FB369E6A2526BDA8522ADC280DB84
 ```
 
 The previously installed OncoFlow process was left running and was not interrupted. Its AppData database is intentionally not migrated out-of-band; migration 009 applies through normal initialization when the updated application is intentionally installed/launched.
+
+## Administrator password reset (2026-09-29)
+
+Settings → Users → Reset password lets an authenticated administrator set and confirm a new 12–128 character password for another modern OncoFlow account without the old password. Current-account changes remain under Account. Inactive accounts stay inactive. Legacy disabled identities are excluded.
+
+This is a new OncoFlow account-management rule, not a replacement of an Access clinical rule. The prior identity migration documentation records that legacy TblUser passwords were discarded; legacy MDBs are not modified or used for recovery.
+
+Rust checks the acting administrator again in the write transaction, validates and hashes the replacement with Argon2id and a random salt, and appends password_reset_by_admin atomically. Audit contains actor and target IDs and credential kind only. A failed audit insert rolls back the credential change.
+
+Sessions retain a private SHA-256 fingerprint of the credential hash captured at login. Authentication refresh rejects a changed credential, ending existing sessions on their next request, including LAN requests. Normal self-service password changes retain the current session and revoke other sessions. Reset is registered as a LAN write and uses existing stale-write protection. No schema change, email service, temporary/default password, or passwordless login is introduced.
+
+## Remembered login usernames (2026-09-29)
+
+The login screen remembers up to 20 successfully authenticated usernames in this installation's WebView local storage, newest first. It uses the canonical username returned by Rust, not failed login input. The latest username is prefilled; Saved usernames lets the user choose another entry or enter a different username. Switching usernames clears the password field. Clear saved usernames removes this connection's list without deleting accounts.
+
+History is scoped by local database directory (shared by standalone and host mode for that directory) or by LAN server host, port, and pinned certificate fingerprint. Only username strings are persisted: no passwords, password hashes, display names, roles, or session tokens. Missing, corrupt, or unavailable storage never blocks login. This is a new UI convenience, with no Access parity rule or database migration; legacy MDBs remain untouched. History begins with successful logins after this feature is installed and does not enumerate server accounts.

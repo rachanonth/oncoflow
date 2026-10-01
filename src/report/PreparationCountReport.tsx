@@ -100,8 +100,9 @@ function formatPreparationQuantity(prescriptions: number, bottles: number): stri
 export function aggregateReportRows(rows: PreparationCountReportRow[], groupBy: ReportGroupBy): GroupedPreparationPeriod[] {
   const periods = new Map<string, Map<string, { key: string; label: string; prescriptionCount: number; bottleCount: number }>>();
   for (const row of rows) {
-    const key = groupBy === "drug" ? `drug:${row.drugId}` : row.preparerUserId === null ? `pharmacist-name:${row.preparerName}` : `pharmacist:${row.preparerUserId}`;
-    const label = groupBy === "drug" ? row.drugName : row.preparerName;
+    const baseKey = groupBy === "drug" ? `drug:${row.drugId}` : row.preparerUserId === null ? `pharmacist-name:${row.preparerName}` : `pharmacist:${row.preparerUserId}`;
+    const key = row.cancelled ? `${baseKey}:cancelled` : baseKey;
+    const label = (groupBy === "drug" ? row.drugName : row.preparerName) + (row.cancelled ? " · เตรียมแล้ว–ยกเลิก" : "");
     const items = periods.get(row.periodStart) ?? new Map();
     const current = items.get(key);
     items.set(key, { key, label, prescriptionCount: (current?.prescriptionCount ?? 0) + row.prescriptionCount, bottleCount: (current?.bottleCount ?? 0) + row.bottleCount });

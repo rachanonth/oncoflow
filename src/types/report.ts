@@ -1,5 +1,19 @@
 export type ReportInterval = "daily" | "weekly" | "monthly";
 
+export interface DiluentUsageRow {
+  diluentName: string | null;
+  volumeMl: number | null;
+  bottleCount: number;
+  doseCount: number;
+}
+
+export interface DiluentUsageReport {
+  preparationDate: string;
+  rows: DiluentUsageRow[];
+  totalBottles: number;
+  totalDoses: number;
+}
+
 export interface PreparationCountReportRequest {
   interval: ReportInterval;
   dateFrom: string;
@@ -7,6 +21,7 @@ export interface PreparationCountReportRequest {
 }
 
 export interface PreparationCountReportRow {
+  cancelled?: boolean;
   periodStart: string;
   drugId: number;
   drugName: string;
@@ -32,6 +47,7 @@ export interface InventoryUsageReportRequest {
 }
 
 export interface InventoryUsageReportRow {
+  cancelledReviewCount?: number;
   periodStart: string;
   drugId: number;
   drugCode: string;
@@ -58,4 +74,22 @@ export interface InventoryUsageReport {
   totalIssuedSourceContainers: number;
   drugCount: number;
   rows: InventoryUsageReportRow[];
+}
+export interface WardDeliveryRow {
+  taskId: number;
+  wardId: number | null;
+  wardName: string;
+  patientId: number;
+  patientHn: string;
+  patientName: string;
+  drugName: string;
+  orderedDoseText: string | null;
+  doseUnitText: string | null;
+  diluentName: string | null;
+  diluentVolumeMl: number | null;
+}
+
+export interface WardDeliveryReport {
+  preparationDate: string;
+  rows: WardDeliveryRow[];
 }

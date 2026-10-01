@@ -236,3 +236,16 @@ pub(super) fn update_password(
         params![password_hash, user_id],
     )
 }
+
+// Reset preserves the account's active state.
+pub(super) fn reset_password(
+    transaction: &Transaction<'_>,
+    user_id: i64,
+    hash: &str,
+) -> rusqlite::Result<usize> {
+    transaction.execute(
+        "UPDATE users SET password_hash=?1,updated_at=CURRENT_TIMESTAMP,
+        password_changed_at=CURRENT_TIMESTAMP WHERE id=?2 AND credential_kind='argon2id'",
+        params![hash, user_id],
+    )
+}

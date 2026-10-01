@@ -1,6 +1,6 @@
 export type OrderSortField = "date" | "orderId" | "patient";
 export type SortDirection = "asc" | "desc";
-export type OrderWorkflowStatus = "active" | "on_hold" | "legacy";
+export type OrderWorkflowStatus = "active" | "on_hold" | "legacy" | "cancelled";
 
 export interface OrderStatusEvent {
   id: number;
@@ -51,6 +51,7 @@ export interface OrderSummary {
 export interface OrderListResponse { items: OrderSummary[]; total: number }
 
 export interface OrderItemDetail {
+  cancelled?: boolean;
   id: number;
   drugId: number;
   drugName: string;
@@ -84,6 +85,7 @@ export interface OrderItemDetail {
 }
 
 export interface OrderDetail {
+  cancellations?: CancellationEvent[];
   id: number;
   orderId: string;
   patientId: number;
@@ -166,3 +168,8 @@ export interface OrderLookups {
   wards: OrderLookupOption[];
   preparationPharmacists: OrderLookupOption[];
 }
+
+export interface CancellationTask { id: number; itemId: number; drugName: string; preparationDate: string; state: string; finalContainerCount: number; inventoryStatus: string | null; printed: boolean; actuallyPrepared: boolean }
+export interface CancellationEvent { id: number; itemId: number | null; reason: string; actorName: string; occurredAt: string; tasks: CancellationTask[] }
+export interface CancellationPreview { revision: string; order: OrderDetail; itemId: number | null; tasks: CancellationTask[] }
+export interface CancelOrderInput { itemId: number | null; revision: string; reason: string; tasks: { taskId: number; actuallyPrepared: boolean }[]; acknowledged: boolean }

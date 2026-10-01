@@ -2,7 +2,7 @@
 
 ## Goal
 
-Migrate the legacy Microsoft Access oncology pharmacy application to a single-user desktop application named **OncoFlow** using:
+Migrate the legacy Microsoft Access oncology pharmacy application to a desktop application with standalone and LAN client/server modes named **OncoFlow** using:
 
 - Tauri 2
 - React
@@ -77,7 +77,15 @@ Database:
 
 ### Database architecture rule
 
-OncoFlow is a fully local, single-user desktop application. All application data must be stored in the local SQLite database `oncoflow.db`.
+OncoFlow supports installed desktop clients on a private LAN, authorized on 2026-09-18 for a Windows server and three concurrent users. In LAN mode, all application data is stored in `oncoflow.db` on the server machine's local disk. Only the Rust server opens that database; clients use the authenticated, encrypted Rust API. Standalone mode remains available for a single PC.
+
+Do not open SQLite over SMB/network shares. Keep sessions separate, enforce authentication at the server boundary, and reject stale writes. Client mode must never silently fall back to a local database. See `docs/deployment/LAN_Server_Client.md`.
+
+The desktop can host the Rust server in-process. In host mode, the local workspace
+also uses the loopback LAN API; it must not access SQLite through standalone
+commands. Stop/join all client workers before releasing the database-directory
+lock. Hosting requires the app to remain running. Local server controls are never
+exposed through the remote LAN command allowlist.
 
 Do not:
 
@@ -86,7 +94,7 @@ Do not:
 - query legacy `dbo_*` tables;
 - synchronize with external databases;
 - create a `HospitalGateway` or `HomcGateway`;
-- require network connectivity for normal operation.
+- require internet connectivity for normal operation (LAN mode requires the server and local network).
 
 Treat legacy references to external `dbo_*` tables as legacy-only evidence. Exclude them from the new architecture unless a later task explicitly changes this rule. `AllTable.mdb` is the sole legacy data source for migration into `oncoflow.db`.
 
@@ -173,7 +181,7 @@ The Access application references historical hospital/HOMC objects such as:
 - dbo_Ward
 - dbo_docc
 
-These names document legacy behavior only. Do not connect to them, convert them automatically into local SQLite tables, or create gateway abstractions for them. The new application must operate entirely from `oncoflow.db` without network connectivity.
+These names document legacy behavior only. Do not connect to them, convert them automatically into local SQLite tables, or create gateway abstractions for them. The new application must operate entirely from `oncoflow.db`, locally in standalone mode or through the OncoFlow server on the private LAN. No external hospital database connection is permitted.
 
 ## Security
 

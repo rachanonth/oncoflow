@@ -1,6 +1,9 @@
-# Tauri + Vanilla
+# OncoFlow
 
-This template should help get you started developing with Tauri in vanilla HTML, CSS and Javascript.
+Oncology pharmacy desktop application built with Tauri, React, Rust, and SQLite.
+
+Supports standalone use and installed desktop clients connected to an OncoFlow
+server on a private LAN. See [Windows server and client setup](docs/deployment/LAN_Server_Client.md).
 
 ## Recommended IDE Setup
 

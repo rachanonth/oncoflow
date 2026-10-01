@@ -1,3 +1,4 @@
+import { editFormKeyboard } from "../components/editFormKeyboard";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -202,7 +203,7 @@ function MasterDataHeading({ eyebrow, title, pageKey, action, onAction, busy }: 
 }
 
 function MasterDataEditor({ title, busy, onCancel, onSubmit, children }: { title: string; busy: boolean; onCancel: () => void; onSubmit: (event: React.FormEvent) => void; children: React.ReactNode }) {
-  return <section className="surface master-data-editor" aria-labelledby="master-data-editor-heading"><div><p className="eyebrow">Local lookup</p><h2 id="master-data-editor-heading">{title}</h2></div><form onSubmit={onSubmit} noValidate>{children}<div className="master-data-editor__actions"><button className="button button--secondary" type="button" disabled={busy} onClick={onCancel}>Cancel</button><button className="button button--primary" type="submit" disabled={busy}>{busy ? "Saving…" : "Save"}</button></div></form></section>;
+  return <section className="surface master-data-editor" aria-labelledby="master-data-editor-heading"><div><p className="eyebrow">Local lookup</p><h2 id="master-data-editor-heading">{title}</h2></div><form onKeyDownCapture={editFormKeyboard} onSubmit={onSubmit} noValidate>{children}<div className="master-data-editor__actions"><button className="button button--secondary" type="button" disabled={busy} onClick={onCancel}>Cancel</button><button className="button button--primary" type="submit" disabled={busy}>{busy ? "Saving…" : "Save"}</button></div></form></section>;
 }
 
 function MasterDataField({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
@@ -255,14 +256,14 @@ export function WardTable({ records, loading, onEdit, editor }: { records: WardR
 }
 
 function DoctorEditRow({ editor }: { editor: DoctorInlineEditor }) {
-  return <tr className="master-data-inline-row"><td colSpan={2}><form className="master-data-inline-editor master-data-inline-editor--doctor" onSubmit={editor.onSubmit} noValidate>
+  return <tr className="master-data-inline-row"><td colSpan={2}><form onKeyDownCapture={editFormKeyboard} className="master-data-inline-editor master-data-inline-editor--doctor" onSubmit={editor.onSubmit} noValidate>
     <label className="master-data-inline-field"><span className="sr-only">Doctor name</span><input autoFocus value={editor.values.name} disabled={editor.busy} aria-invalid={Boolean(editor.errors.name)} onChange={(event) => editor.onChange(event.target.value)} />{editor.errors.name && <span className="field-error">{editor.errors.name}</span>}</label>
     <InlineEditorActions busy={editor.busy} onCancel={editor.onCancel} />
   </form></td></tr>;
 }
 
 function WardEditRow({ editor }: { editor: WardInlineEditor }) {
-  return <tr className="master-data-inline-row"><td colSpan={3}><form className="master-data-inline-editor master-data-inline-editor--ward" onSubmit={editor.onSubmit} noValidate>
+  return <tr className="master-data-inline-row"><td colSpan={3}><form onKeyDownCapture={editFormKeyboard} className="master-data-inline-editor master-data-inline-editor--ward" onSubmit={editor.onSubmit} noValidate>
     <label className="master-data-inline-field"><span className="sr-only">Ward name</span><input autoFocus value={editor.values.name} disabled={editor.busy} aria-invalid={Boolean(editor.errors.name)} onChange={(event) => editor.onNameChange(event.target.value)} />{editor.errors.name && <span className="field-error">{editor.errors.name}</span>}</label>
     <label className="master-data-inline-field"><span className="sr-only">Telephone (optional)</span><input value={editor.values.telephone} disabled={editor.busy} aria-invalid={Boolean(editor.errors.telephone)} onChange={(event) => editor.onTelephoneChange(event.target.value)} />{editor.errors.telephone && <span className="field-error">{editor.errors.telephone}</span>}</label>
     <InlineEditorActions busy={editor.busy} onCancel={editor.onCancel} />

@@ -101,7 +101,7 @@ export function DrugDetail({ drugId, onBack, onEdit }: DrugDetailProps) {
           <DrugField label="Default diluent" value={drug.defaultDiluent} />
           <DrugField label="Default route" value={drug.defaultRoute} />
           <DrugField label="Default rate" value={displayDuration(drug.defaultRate)} />
-          <DrugField label="Expiry time" value={displayDuration(drug.expiryTime, true)} />
+          <DrugField label="Expiry time" value={displayDuration(drug.expiryTime, true, true)} />
           <DrugField label="Preparation detail" value={drug.detail} wide preserveLines />
           <DrugField label="Storage" value={drug.storage} wide preserveLines />
           <DrugField label="Expiry storage" value={drug.expiryStorage} wide preserveLines />
